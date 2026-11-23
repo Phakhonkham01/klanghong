@@ -70,10 +70,9 @@ export async function requestOtpAction(
   if (profile && !profile.is_active) return { ok: false, error: lo.login.inactive };
   if (profile?.approval === "rejected") return { ok: false, error: t.rejected };
   if (purpose === "reset" && !profile) return { ok: false, error: t.notRegistered };
-  // Already has a password: sign in with it (or use "forgot password") instead of a new OTP.
-  if (purpose === "signup" && profile && !profile.must_change_password && !profile.must_set_name) {
-    return { ok: false, error: t.alreadyRegistered };
-  }
+  // Any number already in the system cannot sign up again: sign in, or "forgot password"
+  // (which also finishes an unfinished sign-up or a committee-added account).
+  if (purpose === "signup" && profile) return { ok: false, error: t.alreadyRegistered };
 
   const used = await usedThisMonth(phone, now);
   if (used >= OTP.monthlyLimit) {
@@ -211,6 +210,7 @@ export async function verifyOtpAction(
 
   if (profile && !profile.is_active) return { ok: false, error: lo.login.inactive };
   if (!profile && purpose === "reset") return { ok: false, error: t.notRegistered };
+  if (profile && purpose === "signup") return { ok: false, error: t.alreadyRegistered };
 
   if (!profile) {
     // First sign-in: self-registration, waits for committee approval.

@@ -405,6 +405,42 @@ async function main() {
     rbPage.location === "/pending" || rbPage.location === "/welcome",
   );
 
+  // --- any registered number is refused at sign-up; committee-added students use "forgot password" ---
+  const D = `20996${A.slice(5)}`;
+  PHONES.push(D);
+  const added = await callAction(
+    ids,
+    "createStudentAction",
+    committee,
+    [`0${D}`, "ນັກສຶກສາ ເພີ່ມໂດຍຄະນະ"],
+    "/committee/students",
+  );
+  check(
+    "committee adds a student by phone",
+    added.result?.ok === true,
+    JSON.stringify(added.result),
+  );
+  const dupSignup = await callAction(ids, "requestOtpAction", "", [D, "signup"], "/login");
+  check(
+    "sign-up with a number already in the system is refused",
+    dupSignup.result?.ok === false && /ມີໃນລະບົບແລ້ວ/.test(String(dupSignup.result?.error)),
+    JSON.stringify(dupSignup.result),
+  );
+  await plant(D, "343434");
+  const dupVerify = await callAction(ids, "verifyOtpAction", "", [D, "343434", "signup"], "/login");
+  check(
+    "sign-up verify is refused for a registered number too",
+    dupVerify.result?.ok === false && !dupVerify.redirect,
+  );
+  await admin.from("otp_requests").update({ consumed_at: new Date().toISOString() }).eq("phone", D);
+  await plant(D, "565656");
+  const firstPw = await callAction(ids, "verifyOtpAction", "", [D, "565656", "reset"], "/login");
+  check(
+    "committee-added student sets a password via forgot-password",
+    firstPw.redirect === "/change-password",
+    `${firstPw.redirect}`,
+  );
+
   // --- students page shows OTP usage ---
   const sp = await page("/committee/students", committee);
   check(
