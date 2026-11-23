@@ -49,3 +49,7 @@ Decisions taken where the brief was ambiguous. Items marked **(confirm)** are wa
 
 ## Fonts
 - All text uses Noto Sans Lao Looped (variable 100–900, Lao + Latin) via `next/font/google`, self-hosted so the CSP (`font-src 'self'`) allows it and there is no runtime request to Google. The font variable sits on `<html>` because `font-sans` is applied there (it was on `<body>` before, which silently fell back to a serif system font).
+
+## Cloudflare Workers deploy (OpenNext)
+- Verified locally on workerd (2026-11-23): build OK, gzip 1.85 MB (< 3 MB free limit); `test:auth` and `test:otp` (34 checks) pass against the Worker; `wenova-link` sends the expected POST /sms/package from inside the Worker (checked with a local mock API, no real SMS).
+- Deploy: `pnpm exec wrangler login` → `pnpm cf:secrets` (uploads server env from .env.local) → `pnpm cf:deploy` (NEXT_PUBLIC_* must be in .env.local at build time). Local check: `pnpm cf:secrets --local && pnpm cf:preview`.
