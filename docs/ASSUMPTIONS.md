@@ -40,3 +40,4 @@ Decisions taken where the brief was ambiguous. Items marked **(confirm)** are wa
 - Codes are stored only as HMAC hashes (`OTP_SECRET`, defaulting to the service role key) in `otp_requests`, which has RLS on and no user grants.
 - After a verified code the server creates the Supabase session via an admin magic-link token (no password involved); sessions refresh automatically, so OTP is rarely needed again.
 - Pending/rejected accounts cannot submit payments (DB trigger) and only see the waiting page.
+- `pnpm test:otp` (23 checks, no SMS sent: codes are planted, and every OTP request it makes must be refused before sending) passed on 2026-11-23 after migration 0004. Real SMS delivery still needs `WENOVA_API_TOKEN` and a manual test with a real phone.
