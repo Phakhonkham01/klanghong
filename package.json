@@ -14,9 +14,9 @@
     "format:check": "prettier --check .",
     "seed:admin": "tsx --env-file=.env.local scripts/seed-admin.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
-    "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
-    "db:status": "tsx --env-file=.env.local scripts/migrate.ts --status",
-    "test:rls": "tsx --env-file=.env.local scripts/rls-test.ts"
+    "db:migrate": "tsx --env-file=.env.local scripts/migrate.mts",
+    "db:status": "tsx --env-file=.env.local scripts/migrate.mts --status",
+    "test:rls": "tsx --env-file=.env.local scripts/rls-test.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
