@@ -616,7 +616,9 @@ async function cleanup() {
   if (now?.qr_path && now.qr_path !== originalSettings?.qr_path)
     await admin.storage.from("settings").remove([now.qr_path]);
   if (originalSettings) {
-    const { id: _id, updated_at: _u, ...rest } = originalSettings;
+    const rest: Record<string, unknown> = { ...originalSettings };
+    delete rest.id;
+    delete rest.updated_at;
     await admin.from("settings").update(rest).eq("id", 1);
     await admin.from("audit_log").delete().eq("entity", "settings").gte("created_at", startedAt);
   }
