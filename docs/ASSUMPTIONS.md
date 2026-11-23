@@ -34,7 +34,7 @@ Decisions taken where the brief was ambiguous. Items marked **(confirm)** are wa
 - Pages still show demo data; wiring them to the database is the next phase.
 
 ## Phone OTP sign-in (replaces Google)
-- Students sign in with a Lao mobile number + 6-digit SMS code sent through `wenova-link` (`WENOVA_API_TOKEN` in `.env.local`). Committee members keep code + password. Google sign-in was removed.
+- Students sign in with a Lao mobile number + 6-digit SMS code sent through `wenova-link` (`WENOVA_API_TOKEN` in `.env.local`). Committee members keep code + password; that form is hidden on the login page and appears after three quick taps on the piggy logo (obscurity only, the account still needs its password). Google sign-in was removed.
 - Anyone may register by phone; a new number becomes a `pending` profile, sets its full name on first sign-in (`/welcome`), then waits on `/pending` until the committee approves it on the Students page. Committee can also add students by phone (approved immediately).
 - OTP limits: 3 SMS per number per calendar month (Asia/Vientiane), reset early by the committee ("ຣີເຊັດ OTP"); 60 s between sends; 5 wrong tries per code; code valid 5 min. Abuse guards: 5 SMS per IP per hour and `OTP_GLOBAL_DAILY_LIMIT` (default 100) per 24 h. A failed SMS send does not count.
 - Codes are stored only as HMAC hashes (`OTP_SECRET`, defaulting to the service role key) in `otp_requests`, which has RLS on and no user grants.

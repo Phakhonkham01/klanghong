@@ -1,5 +1,5 @@
-import { PiggyBank } from "lucide-react";
 import { LoginTabs } from "@/components/auth/login-tabs";
+import { SecretLogo } from "@/components/auth/secret-logo";
 import { lo } from "@/lib/i18n/lo";
 import { safeNextPath } from "@/lib/validators";
 
@@ -18,9 +18,7 @@ export default async function Page({
     <div className="flex min-h-dvh flex-col bg-primary">
       {/* Splash-style brand area */}
       <section className="flex flex-1 flex-col items-center justify-center gap-4 px-6 pt-14 pb-16 text-primary-foreground">
-        <span className="grid size-28 place-items-center rounded-[2rem] bg-white/95 text-primary shadow-[0_8px_0_0_var(--brand-shade)]">
-          <PiggyBank className="size-16" strokeWidth={2.2} aria-hidden />
-        </span>
+        <SecretLogo />
         <h1 className="text-5xl leading-tight font-black">{lo.app.name}</h1>
         <p className="max-w-xs text-center text-base font-semibold text-primary-foreground/90">
           {lo.app.tagline}
@@ -40,10 +38,7 @@ export default async function Page({
               {error}
             </p>
           ) : null}
-          <LoginTabs
-            next={next}
-            initial={next?.startsWith("/committee") ? "committee" : "student"}
-          />
+          <LoginTabs next={next} />
         </div>
       </section>
     </div>

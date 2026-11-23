@@ -1,31 +1,40 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { lo } from "@/lib/i18n/lo";
 import { LoginForm } from "./login-form";
 import { PhoneLogin } from "./phone-login";
+import { REVEAL_COMMITTEE_EVENT } from "./secret-logo";
 
-/** Students sign in by phone + OTP; committee members by code + password. */
-export function LoginTabs({ next, initial }: { next?: string; initial?: "student" | "committee" }) {
-  const [tab, setTab] = useState<"student" | "committee">(initial ?? "student");
+/**
+ * Students: phone + OTP (the only visible option).
+ * Committee: code + password, shown only after tapping the logo three times.
+ */
+export function LoginTabs({ next }: { next?: string }) {
+  const [committee, setCommittee] = useState(false);
+
+  useEffect(() => {
+    const reveal = () => setCommittee(true);
+    window.addEventListener(REVEAL_COMMITTEE_EVENT, reveal);
+    return () => window.removeEventListener(REVEAL_COMMITTEE_EVENT, reveal);
+  }, []);
+
+  if (!committee) return <PhoneLogin />;
+
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-2" role="group">
-        {(["student", "committee"] as const).map((k) => (
-          <Button
-            key={k}
-            type="button"
-            variant="tile"
-            className="h-11"
-            aria-pressed={tab === k}
-            onClick={() => setTab(k)}
-          >
-            {k === "student" ? lo.otp.tabStudent : lo.otp.tabCommittee}
-          </Button>
-        ))}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="font-bold">{lo.otp.tabCommittee}</p>
+        <button
+          type="button"
+          onClick={() => setCommittee(false)}
+          className="flex items-center gap-1 text-sm font-bold text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" /> {lo.otp.tabStudent}
+        </button>
       </div>
-      {tab === "student" ? <PhoneLogin /> : <LoginForm next={next} />}
+      <LoginForm next={next} />
     </div>
   );
 }
