@@ -1,38 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { toast } from "sonner";
+import { signInAction, type FormState } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { lo } from "@/lib/i18n/lo";
 
 const fieldClass = "h-13 rounded-2xl border-2 bg-muted/40 px-4 text-base md:text-base";
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string }) {
   const [show, setShow] = useState(false);
+  const [state, action, pending] = useActionState<FormState, FormData>(signInAction, {
+    error: null,
+  });
 
   return (
-    <form
-      className="space-y-3"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const data = new FormData(e.currentTarget);
-        if (!String(data.get("code") ?? "").trim() || !String(data.get("password") ?? "")) {
-          toast.error(lo.login.required);
-          return;
-        }
-        // Real sign-in is wired up in Phase 3 (Supabase Auth).
-        toast.info(lo.login.notConnected);
-      }}
-    >
+    <form action={action} className="space-y-3" noValidate>
+      {next ? <input type="hidden" name="next" value={next} /> : null}
       <Input
         name="code"
+        key={state.code ?? ""}
+        defaultValue={state.code}
         placeholder={lo.login.studentCode}
         aria-label={lo.login.studentCode}
         autoComplete="username"
         autoCapitalize="characters"
+        spellCheck={false}
         maxLength={20}
+        required
+        aria-invalid={state.error ? true : undefined}
         className={fieldClass}
       />
       <div className="relative">
@@ -42,6 +39,9 @@ export function LoginForm() {
           placeholder={lo.login.password}
           aria-label={lo.login.password}
           autoComplete="current-password"
+          maxLength={72}
+          required
+          aria-invalid={state.error ? true : undefined}
           className={`${fieldClass} pr-12`}
         />
         <button
@@ -53,8 +53,16 @@ export function LoginForm() {
           {show ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
         </button>
       </div>
-      <Button type="submit" variant="chunky" size="xl" className="mt-3 w-full">
-        {lo.login.submit}
+      {state.error ? (
+        <p
+          role="alert"
+          className="rounded-xl bg-status-rejected-bg px-3 py-2 text-sm font-semibold text-status-rejected"
+        >
+          {state.error}
+        </p>
+      ) : null}
+      <Button type="submit" variant="chunky" size="xl" className="mt-3 w-full" disabled={pending}>
+        {pending ? lo.login.signingIn : lo.login.submit}
       </Button>
     </form>
   );

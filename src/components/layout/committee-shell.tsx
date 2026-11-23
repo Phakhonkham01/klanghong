@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Menu, UserRound } from "lucide-react";
+import { LogOut, Menu, UserRound } from "lucide-react";
+import { signOutAction } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { lo } from "@/lib/i18n/lo";
@@ -44,6 +45,17 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
           <UserRound className="size-5" aria-hidden />
           {lo.nav.studentArea}
         </Link>
+      </li>
+      <li>
+        <form action={signOutAction}>
+          <button
+            type="submit"
+            className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-bold text-destructive hover:bg-destructive/10"
+          >
+            <LogOut className="size-5" aria-hidden />
+            {lo.nav.logout}
+          </button>
+        </form>
       </li>
     </ul>
   );

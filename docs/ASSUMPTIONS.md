@@ -23,3 +23,12 @@ Decisions taken where the brief was ambiguous. Items marked **(confirm)** are wa
 - Migrations were applied by pasting them into the SQL Editor (no `SUPABASE_DB_URL`), so `ops.migrations` is not populated; future migrations must be pasted the same way or applied with `pnpm db:migrate` once the DB URL is set.
 - `pnpm test:rls` (29 checks) passed on 2026-11-23 and left no test data behind.
 - The service_role / secret keys were shared in chat on 2026-11-23 and must be rotated in the dashboard; then re-run `pnpm setup:env`.
+
+## Phase 3 — Auth
+- Students sign in with student code + password. Supabase Auth needs an email, so each code maps to `<code>@klanghong.local` (never receives mail). Codes are uppercased, 3–20 letters/digits.
+- `src/middleware.ts` refreshes the session and guards routes: signed out → `/login?next=…`; inactive → signed out; `must_change_password` → `/change-password`; students cannot open `/committee/*`.
+- Clearing `must_change_password` after a password change uses the service-role client for the caller's own row only (users have no UPDATE on profiles).
+- `pnpm seed:admin` creates/repairs the first committee account from `ADMIN_*` (created `ADMIN001` on 2026-11-23, `must_change_password = false`).
+- `pnpm test:auth` (15 route-guard checks with real sessions, needs `pnpm dev`) passed on 2026-11-23.
+- Recommended in the Supabase dashboard: Authentication → turn off "Allow new users to sign up" (accounts are created by the committee only).
+- Pages still show demo data; wiring them to the database is the next phase.

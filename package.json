@@ -12,12 +12,13 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "seed:admin": "tsx --env-file=.env.local scripts/seed-admin.ts",
+    "seed:admin": "tsx --env-file=.env.local scripts/seed-admin.mts",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "db:migrate": "tsx --env-file=.env.local scripts/migrate.mts",
     "db:status": "tsx --env-file=.env.local scripts/migrate.mts --status",
     "test:rls": "tsx --env-file=.env.local scripts/rls-test.mts",
-    "setup:env": "tsx scripts/setup-env.mts"
+    "setup:env": "tsx scripts/setup-env.mts",
+    "test:auth": "tsx --env-file=.env.local scripts/auth-flow-test.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

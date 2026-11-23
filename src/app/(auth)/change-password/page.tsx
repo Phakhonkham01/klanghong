@@ -1,14 +1,26 @@
-import { Brand } from "@/components/layout/brand";
+import { KeyRound } from "lucide-react";
+import { ChangePasswordForm } from "@/components/auth/change-password-form";
+import { requireSession } from "@/lib/auth";
 import { lo } from "@/lib/i18n/lo";
 
-export default function Page() {
+export const metadata = { title: lo.changePassword.title };
+
+export default async function Page() {
+  const { profile } = await requireSession();
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-10">
-      <div className="w-full max-w-sm text-center">
-        <div className="mb-6 flex justify-center">
-          <Brand href="/login" />
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex flex-col items-center gap-3 text-center">
+          <span className="grid size-20 press-3d place-items-center rounded-3xl bg-sky text-white [--press-shade:var(--sky-shade)] active:transform-none">
+            <KeyRound className="size-10" strokeWidth={2.4} aria-hidden />
+          </span>
+          <h1 className="text-2xl font-bold">{lo.changePassword.title}</h1>
+          <p className="text-sm text-muted-foreground">
+            {profile.full_name} · <span className="money">{profile.student_code}</span>
+          </p>
+          <p className="text-sm text-muted-foreground">{lo.changePassword.subtitle}</p>
         </div>
-        <p className="rounded-2xl border-2 py-10 text-muted-foreground">{lo.common.comingSoon}</p>
+        <ChangePasswordForm />
       </div>
     </div>
   );

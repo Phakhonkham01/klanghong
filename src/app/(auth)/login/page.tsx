@@ -1,10 +1,12 @@
 import { PiggyBank } from "lucide-react";
 import { LoginForm } from "@/components/auth/login-form";
 import { lo } from "@/lib/i18n/lo";
+import { safeNextPath } from "@/lib/validators";
 
 export const metadata = { title: lo.login.submit };
 
-export default function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  const next = safeNextPath((await searchParams).next) ?? undefined;
   return (
     <div className="flex min-h-dvh flex-col bg-primary">
       {/* Splash-style brand area */}
@@ -23,7 +25,7 @@ export default function Page() {
         <div className="mx-auto w-full max-w-sm">
           <h2 className="text-2xl font-bold">{lo.login.welcome}</h2>
           <p className="mb-6 text-sm text-muted-foreground">{lo.login.subtitle}</p>
-          <LoginForm />
+          <LoginForm next={next} />
         </div>
       </section>
     </div>

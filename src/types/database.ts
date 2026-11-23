@@ -13,7 +13,7 @@ type Table<Row, Insert, Update> = {
   Relationships: [];
 };
 
-export interface ProfileRow {
+export type ProfileRow = {
   id: string;
   student_code: string;
   full_name: string;
@@ -22,9 +22,9 @@ export interface ProfileRow {
   must_change_password: boolean;
   phone: string | null;
   created_at: string;
-}
+};
 
-export interface SettingsRow {
+export type SettingsRow = {
   id: number;
   weekly_amount: number;
   start_date: string;
@@ -35,9 +35,9 @@ export interface SettingsRow {
   note: string | null;
   updated_at: string;
   updated_by: string | null;
-}
+};
 
-export interface PaymentRow {
+export type PaymentRow = {
   id: string;
   student_id: string;
   week_start: string;
@@ -53,9 +53,9 @@ export interface PaymentRow {
   reviewed_at: string | null;
   self_reviewed: boolean;
   created_at: string;
-}
+};
 
-export interface ExpenseRow {
+export type ExpenseRow = {
   id: string;
   title: string;
   amount: number;
@@ -64,9 +64,9 @@ export interface ExpenseRow {
   receipt_path: string | null;
   created_by: string | null;
   created_at: string;
-}
+};
 
-export interface AuditRow {
+export type AuditRow = {
   id: number;
   actor_id: string | null;
   action: string;
@@ -74,9 +74,9 @@ export interface AuditRow {
   entity_id: string | null;
   meta: Record<string, unknown>;
   created_at: string;
-}
+};
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       profiles: Table<
@@ -95,7 +95,7 @@ export interface Database {
         Pick<ExpenseRow, "title" | "amount" | "spent_at"> & Partial<ExpenseRow>,
         Partial<ExpenseRow>
       >;
-      audit_log: Table<AuditRow, never, never>;
+      audit_log: Table<AuditRow, Partial<AuditRow>, Partial<AuditRow>>;
     };
     Views: Record<string, never>;
     Functions: {
@@ -113,4 +113,4 @@ export interface Database {
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
-}
+};

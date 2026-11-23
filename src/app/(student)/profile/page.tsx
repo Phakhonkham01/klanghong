@@ -9,7 +9,9 @@ import {
   Wallet,
 } from "lucide-react";
 import { DarkModeRow } from "@/components/student/dark-mode-row";
-import { demoPayments, demoSettings, demoStudent } from "@/lib/demo";
+import { signOutAction } from "@/app/(auth)/actions";
+import { requireSession } from "@/lib/auth";
+import { demoPayments, demoSettings } from "@/lib/demo";
 import { lo } from "@/lib/i18n/lo";
 import { formatKip } from "@/lib/money";
 import { buildStudentWeeks, computeStreak, summarizeOutstanding } from "@/lib/status";
@@ -43,7 +45,8 @@ function StatCard({
 const rowClass =
   "flex w-full items-center gap-3 px-4 py-3.5 text-left font-bold transition-colors hover:bg-muted/60";
 
-export default function Page() {
+export default async function Page() {
+  const { profile } = await requireSession();
   const now = new Date();
   const payments = demoPayments(now);
   const entries = buildStudentWeeks(demoSettings.startDate, payments, now);
@@ -59,14 +62,18 @@ export default function Page() {
       {/* Identity header */}
       <section className="flex flex-col items-center gap-3 border-b-2 pb-6 text-center">
         <span className="grid size-24 press-3d place-items-center rounded-full bg-sky text-4xl font-black text-white [--press-depth:5px] [--press-shade:var(--sky-shade)]">
-          {demoStudent.name.slice(0, 1)}
+          {profile.full_name.replace(/^ນາງ /, "").slice(0, 1)}
         </span>
         <div>
-          <h1 className="text-2xl font-bold">{demoStudent.name}</h1>
-          <p className="money text-sm font-semibold text-muted-foreground">{demoStudent.code}</p>
+          <h1 className="text-2xl font-bold">{profile.full_name}</h1>
+          <p className="money text-sm font-semibold text-muted-foreground">
+            {profile.student_code}
+          </p>
         </div>
         <span className="rounded-full bg-accent px-3 py-0.5 text-xs font-bold text-accent-foreground">
-          {lo.profile.roleStudent}
+          {profile.role === "committee"
+            ? lo.committee.students.roleCommittee
+            : lo.profile.roleStudent}
         </span>
       </section>
 
@@ -135,10 +142,12 @@ export default function Page() {
             <span className="flex-1">{lo.profile.changePassword}</span>
             <ChevronRight className="size-5 text-muted-foreground" aria-hidden />
           </Link>
-          <Link href="/login" className={cn(rowClass, "text-destructive")}>
-            <LogOut className="size-5" strokeWidth={2.6} aria-hidden />
-            <span className="flex-1">{lo.nav.logout}</span>
-          </Link>
+          <form action={signOutAction}>
+            <button type="submit" className={cn(rowClass, "text-destructive")}>
+              <LogOut className="size-5" strokeWidth={2.6} aria-hidden />
+              <span className="flex-1">{lo.nav.logout}</span>
+            </button>
+          </form>
         </div>
       </section>
 
