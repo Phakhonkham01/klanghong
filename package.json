@@ -16,7 +16,8 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "db:migrate": "tsx --env-file=.env.local scripts/migrate.mts",
     "db:status": "tsx --env-file=.env.local scripts/migrate.mts --status",
-    "test:rls": "tsx --env-file=.env.local scripts/rls-test.mts"
+    "test:rls": "tsx --env-file=.env.local scripts/rls-test.mts",
+    "setup:env": "tsx scripts/setup-env.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
