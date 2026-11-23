@@ -1,4 +1,4 @@
-import type { DemoCommitteePayment, DemoStudent } from "@/lib/demo-committee";
+import type { PaymentView, StudentView } from "@/lib/data/types";
 import { buildStudentWeeks, summarizeOutstanding, type WeekStatus } from "@/lib/status";
 import { listWeeks, type IsoDate } from "@/lib/week";
 
@@ -15,14 +15,14 @@ export interface MemberRow {
 
 /** Build the committee payment matrix: one row per active student, one column per week. */
 export function buildMemberRows(
-  students: DemoStudent[],
-  payments: DemoCommitteePayment[],
+  students: StudentView[],
+  payments: PaymentView[],
   startDate: IsoDate,
   weeklyAmount: number,
   now: Date,
 ): { weeks: IsoDate[]; rows: MemberRow[] } {
   const weeks = listWeeks(startDate, now);
-  const byStudent = new Map<string, DemoCommitteePayment[]>();
+  const byStudent = new Map<string, PaymentView[]>();
   for (const p of payments)
     byStudent.set(p.student_id, [...(byStudent.get(p.student_id) ?? []), p]);
 

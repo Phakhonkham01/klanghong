@@ -1,12 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Paperclip, Pencil, Plus, Receipt, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import type { DemoExpense } from "@/lib/demo-committee";
+import { deleteExpenseAction, saveExpenseAction } from "@/app/actions/committee";
+import type { ExpenseView } from "@/lib/data/types";
 import { formatDateLo, formatMonthLo } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import { formatKip, parseKip } from "@/lib/money";
@@ -17,15 +19,17 @@ const field = "h-11 rounded-2xl border-2 px-4 text-base md:text-sm";
 
 type Draft = { id: string | null; title: string; amount: string; date: IsoDate; note: string };
 
-export function ExpensesManager({ initial, today }: { initial: DemoExpense[]; today: IsoDate }) {
-  const [items, setItems] = useState(initial);
+export function ExpensesManager({ initial, today }: { initial: ExpenseView[]; today: IsoDate }) {
+  const router = useRouter();
+  const items = initial;
+  const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [deleting, setDeleting] = useState<DemoExpense | null>(null);
+  const [deleting, setDeleting] = useState<ExpenseView | null>(null);
 
   const total = items.reduce((s, e) => s + e.amount, 0);
   const groups = useMemo(() => {
     const sorted = [...items].sort((a, b) => b.spent_at.localeCompare(a.spent_at));
-    const map = new Map<string, DemoExpense[]>();
+    const map = new Map<string, ExpenseView[]>();
     for (const e of sorted) {
       const k = formatMonthLo(e.spent_at);
       map.set(k, [...(map.get(k) ?? []), e]);
@@ -33,22 +37,28 @@ export function ExpensesManager({ initial, today }: { initial: DemoExpense[]; to
     return [...map];
   }, [items]);
 
-  function save() {
+  async function save() {
     if (!draft) return;
     const amount = parseKip(draft.amount);
     if (!draft.title.trim() || !amount || !isIsoDate(draft.date))
       return void toast.error(t.invalid);
-    const next: DemoExpense = {
-      id: draft.id ?? `exp-${Date.now()}`,
-      title: draft.title.trim(),
-      amount,
-      spent_at: draft.date,
-      note: draft.note.trim() || null,
-      hasReceipt: items.find((i) => i.id === draft.id)?.hasReceipt ?? false,
-    };
-    setItems((all) => (draft.id ? all.map((i) => (i.id === draft.id ? next : i)) : [...all, next]));
+    setBusy(true);
+    const r = await saveExpenseAction(draft).catch(() => null);
+    setBusy(false);
+    if (!r || !r.ok) return void toast.error(r && !r.ok ? r.error : lo.errors.generic);
     toast.success(t.saved);
     setDraft(null);
+    router.refresh();
+  }
+
+  async function remove(id: string) {
+    setBusy(true);
+    const r = await deleteExpenseAction(id).catch(() => null);
+    setBusy(false);
+    if (!r || !r.ok) return void toast.error(r && !r.ok ? r.error : lo.errors.generic);
+    toast.success(t.deleted);
+    setDeleting(null);
+    router.refresh();
   }
 
   return (
@@ -171,7 +181,7 @@ export function ExpensesManager({ initial, today }: { initial: DemoExpense[]; to
                 maxLength={200}
                 className={field}
               />
-              <Button variant="chunky" size="xl" className="mt-2" onClick={save}>
+              <Button variant="chunky" size="xl" className="mt-2" disabled={busy} onClick={save}>
                 {lo.common.save}
               </Button>
             </>
@@ -192,11 +202,8 @@ export function ExpensesManager({ initial, today }: { initial: DemoExpense[]; to
             <Button
               variant="chunky-danger"
               size="xl"
-              onClick={() => {
-                setItems((all) => all.filter((i) => i.id !== deleting?.id));
-                toast.success(t.deleted);
-                setDeleting(null);
-              }}
+              disabled={busy}
+              onClick={() => deleting && remove(deleting.id)}
             >
               {t.delete}
             </Button>

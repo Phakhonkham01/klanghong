@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ImageUp, Info, Landmark, QrCode, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/committee/bits";
@@ -8,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { demoSettings } from "@/lib/demo";
+import { saveSettingsAction } from "@/app/actions/committee";
+import type { SettingsView } from "@/lib/data/types";
 import { formatDateLo } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import { parseKip } from "@/lib/money";
@@ -29,23 +31,38 @@ function Field({ id, label, children }: { id: string; label: string; children: R
   );
 }
 
-export function SettingsForm({ initial }: { initial: typeof demoSettings }) {
+export function SettingsForm({ initial }: { initial: SettingsView }) {
   const [amount, setAmount] = useState(String(initial.weeklyAmount));
   const [startDate, setStartDate] = useState(initial.startDate);
+  const router = useRouter();
   const [qr, setQr] = useState<File | null>(null);
-  const qrUrl = useMemo(() => (qr ? URL.createObjectURL(qr) : null), [qr]);
-  useEffect(() => () => void (qrUrl && URL.revokeObjectURL(qrUrl)), [qrUrl]);
+  const [removeQr, setRemoveQr] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const localQr = useMemo(() => (qr ? URL.createObjectURL(qr) : null), [qr]);
+  const qrUrl = localQr ?? (removeQr ? null : initial.qrUrl);
+  useEffect(() => () => void (localQr && URL.revokeObjectURL(localQr)), [localQr]);
 
   const amountChanged = parseKip(amount) !== initial.weeklyAmount;
 
   return (
     <form
       className="mx-auto max-w-2xl space-y-5"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         const n = parseKip(amount);
         if (!n || n <= 0) return void toast.error(t.invalidAmount);
-        toast.success(t.saved);
+        const form = new FormData(e.currentTarget);
+        if (qr) form.set("qr", qr);
+        else form.delete("qr");
+        if (removeQr && !qr) form.set("removeQr", "1");
+        setSaving(true);
+        const r = await saveSettingsAction(form).catch(() => null);
+        setSaving(false);
+        if (!r || !r.ok) return void toast.error(r && !r.ok ? r.error : lo.errors.generic);
+        toast.success(t.savedReal);
+        setQr(null);
+        setRemoveQr(false);
+        router.refresh();
       }}
     >
       <h1 className="text-2xl font-bold">{t.title}</h1>
@@ -57,6 +74,7 @@ export function SettingsForm({ initial }: { initial: typeof demoSettings }) {
               <Wallet className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="amount"
+                name="weeklyAmount"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 inputMode="numeric"
@@ -67,6 +85,7 @@ export function SettingsForm({ initial }: { initial: typeof demoSettings }) {
           <Field id="start" label={t.startDate}>
             <Input
               id="start"
+              name="startDate"
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
@@ -91,15 +110,29 @@ export function SettingsForm({ initial }: { initial: typeof demoSettings }) {
           <Field id="bank" label={t.bankName}>
             <div className="relative">
               <Landmark className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input id="bank" defaultValue={initial.bankName} className={`${field} pl-10`} />
+              <Input
+                id="bank"
+                name="bankName"
+                maxLength={60}
+                defaultValue={initial.bankName}
+                className={`${field} pl-10`}
+              />
             </div>
           </Field>
           <Field id="accname" label={t.accountName}>
-            <Input id="accname" defaultValue={initial.accountName} className={field} />
+            <Input
+              id="accname"
+              name="accountName"
+              maxLength={80}
+              defaultValue={initial.accountName}
+              className={field}
+            />
           </Field>
           <Field id="accno" label={t.accountNo}>
             <Input
               id="accno"
+              name="accountNo"
+              maxLength={40}
               defaultValue={initial.accountNo}
               inputMode="numeric"
               className={`${field} money`}
@@ -130,16 +163,22 @@ export function SettingsForm({ initial }: { initial: typeof demoSettings }) {
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f && !ACCEPTED.includes(f.type)) return void toast.error(lo.pay.invalidType);
-                  if (f) setQr(f);
+                  if (f) {
+                    setQr(f);
+                    setRemoveQr(false);
+                  }
                 }}
               />
             </label>
-            {qr ? (
+            {qrUrl ? (
               <Button
                 type="button"
                 variant="ghost"
                 className="justify-start text-destructive"
-                onClick={() => setQr(null)}
+                onClick={() => {
+                  setQr(null);
+                  setRemoveQr(true);
+                }}
               >
                 <Trash2 /> {t.qrRemove}
               </Button>
@@ -150,14 +189,16 @@ export function SettingsForm({ initial }: { initial: typeof demoSettings }) {
 
       <SectionCard title={t.note}>
         <Textarea
+          name="note"
+          defaultValue={initial.note}
           aria-label={t.note}
           maxLength={300}
           className="min-h-24 rounded-2xl border-2 p-3 text-base md:text-sm"
         />
       </SectionCard>
 
-      <Button type="submit" variant="chunky" size="xl" className="w-full">
-        {t.save}
+      <Button type="submit" variant="chunky" size="xl" className="w-full" disabled={saving}>
+        {saving ? lo.common.loading : t.save}
       </Button>
     </form>
   );

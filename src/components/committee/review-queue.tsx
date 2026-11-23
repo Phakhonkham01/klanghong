@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Textarea } from "@/components/ui/textarea";
-import type { DemoCommitteePayment } from "@/lib/demo-committee";
-import { committeeMembers } from "@/lib/demo-committee";
+import { reviewPaymentAction } from "@/app/actions/payments";
+import { SlipImage } from "@/components/slip-image";
+import type { PaymentView } from "@/lib/data/types";
 import { formatDateLo, formatDateTimeLo, formatWeekRange } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import { formatKip } from "@/lib/money";
@@ -17,7 +18,7 @@ import type { PaymentStatus, WeekStatus } from "@/lib/status";
 import type { IsoDate } from "@/lib/week";
 import { cn } from "@/lib/utils";
 
-export interface ReviewItem extends DemoCommitteePayment {
+export interface ReviewItem extends PaymentView {
   studentName: string;
   studentCode: string;
   recent: { weekStart: IsoDate; status: WeekStatus }[];
@@ -38,49 +39,13 @@ function useIsDesktop() {
   );
 }
 
-/** Stand-in slip image until real signed URLs exist. */
-function DemoSlip({
-  item,
-  bankName,
-  large,
-}: {
-  item: ReviewItem;
-  bankName: string;
-  large?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "mx-auto flex aspect-[3/5] w-full flex-col rounded-xl bg-gradient-to-b from-sky/25 to-sky/5 p-4 text-left ring-2 ring-sky/30",
-        large ? "max-w-sm text-base" : "max-w-56 text-xs",
-      )}
-    >
-      <p className="font-bold text-sky">{bankName}</p>
-      <p className="text-muted-foreground">{t.demoSlip}</p>
-      <div className="my-auto text-center">
-        <Check
-          className={cn("mx-auto text-status-paid", large ? "size-12" : "size-8")}
-          strokeWidth={3}
-        />
-        <p className={cn("money font-black", large ? "text-3xl" : "text-xl")}>
-          {formatKip(item.amount)}
-        </p>
-      </div>
-      <p className="truncate money">{item.reference}</p>
-      <p className="truncate text-muted-foreground">{formatDateTimeLo(item.created_at)}</p>
-    </div>
-  );
-}
-
 function Detail({
   item,
-  bankName,
   onApprove,
   onReject,
   onZoom,
 }: {
   item: ReviewItem;
-  bankName: string;
   onApprove: () => void;
   onReject: () => void;
   onZoom: () => void;
@@ -112,7 +77,11 @@ function Detail({
         className="block w-full rounded-2xl border-2 border-dashed p-3 hover:bg-muted/50"
         aria-label={t.zoom}
       >
-        <DemoSlip item={item} bankName={bankName} />
+        <SlipImage
+          paymentId={item.id}
+          alt={`${t.slip} · ${item.studentName}`}
+          className="mx-auto h-72 w-full rounded-xl"
+        />
         <span className="mt-2 block text-center text-xs font-bold text-sky">{t.zoom}</span>
       </button>
 
@@ -165,12 +134,18 @@ function Detail({
 
 export function ReviewQueue({
   initialItems,
-  bankName,
+  reviewerName,
 }: {
   initialItems: ReviewItem[];
-  bankName: string;
+  reviewerName: string;
 }) {
   const [items, setItems] = useState(initialItems);
+  // Fresh server data (after revalidation) replaces optimistic state.
+  const [seen, setSeen] = useState(initialItems);
+  if (seen !== initialItems) {
+    setSeen(initialItems);
+    setItems(initialItems);
+  }
   const [tab, setTab] = useState<PaymentStatus>("pending");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState(false);
@@ -213,6 +188,8 @@ export function ReviewQueue({
       // Pick the next pending item before this one leaves the list.
       const pos = list.findIndex((i) => i.id === item.id);
       const next = list[pos + 1] ?? list[pos - 1];
+      const before = item;
+      // Optimistic: move it now, roll back if the server refuses.
       setItems((all) =>
         all.map((i) =>
           i.id === item.id
@@ -220,16 +197,30 @@ export function ReviewQueue({
                 ...i,
                 status,
                 reject_reason: why ?? null,
-                reviewer: committeeMembers[0]!,
+                reviewer: reviewerName,
                 reviewed_at: new Date().toISOString(),
               }
             : i,
         ),
       );
       setSelectedId(isDesktop && next ? next.id : null);
-      toast.success(`${status === "approved" ? t.approved : t.rejected} · ${item.studentName}`);
+      reviewPaymentAction(item.id, status, why)
+        .then((r) => {
+          if (r.ok) {
+            toast.success(
+              `${status === "approved" ? t.approved : t.rejected} · ${item.studentName}`,
+            );
+          } else {
+            setItems((all) => all.map((i) => (i.id === before.id ? before : i)));
+            toast.error(r.error);
+          }
+        })
+        .catch(() => {
+          setItems((all) => all.map((i) => (i.id === before.id ? before : i)));
+          toast.error(lo.errors.generic);
+        });
     },
-    [list, isDesktop],
+    [list, isDesktop, reviewerName],
   );
 
   const openReject = useCallback(() => {
@@ -260,7 +251,6 @@ export function ReviewQueue({
   const detail = activeItem ? (
     <Detail
       item={activeItem}
-      bankName={bankName}
       onApprove={() => decide(activeItem, "approved")}
       onReject={openReject}
       onZoom={() => setZoom(true)}
@@ -383,7 +373,13 @@ export function ReviewQueue({
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
           <DialogTitle>{t.slip}</DialogTitle>
           <DialogDescription className="sr-only">{activeItem?.studentName}</DialogDescription>
-          {activeItem ? <DemoSlip item={activeItem} bankName={bankName} large /> : null}
+          {activeItem ? (
+            <SlipImage
+              paymentId={activeItem.id}
+              alt={`${t.slip} · ${activeItem.studentName}`}
+              className="max-h-[75dvh] min-h-60 w-full rounded-xl"
+            />
+          ) : null}
         </DialogContent>
       </Dialog>
 

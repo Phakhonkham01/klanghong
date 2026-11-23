@@ -1,22 +1,26 @@
 import { ReviewQueue, type ReviewItem } from "@/components/committee/review-queue";
-import { demoSettings } from "@/lib/demo";
-import { demoAllPayments, demoStudents } from "@/lib/demo-committee";
+import { requireSession } from "@/lib/auth";
+import { getPayments, getSettings, getStudents } from "@/lib/data/queries";
 import { lo } from "@/lib/i18n/lo";
 import { buildStudentWeeks } from "@/lib/status";
 
-export const dynamic = "force-dynamic";
 export const metadata = { title: lo.nav.review };
 
-export default function Page() {
+export default async function Page() {
+  const { profile } = await requireSession("committee");
   const now = new Date();
-  const payments = demoAllPayments(now);
-  const students = new Map(demoStudents.map((s) => [s.id, s]));
+  const [settings, payments, students] = await Promise.all([
+    getSettings(),
+    getPayments(),
+    getStudents(),
+  ]);
+  const byId = new Map(students.map((s) => [s.id, s]));
 
   const recentByStudent = new Map(
-    demoStudents.map((s) => [
+    students.map((s) => [
       s.id,
       buildStudentWeeks(
-        demoSettings.startDate,
+        settings.startDate,
         payments.filter((p) => p.student_id === s.id),
         now,
       )
@@ -29,10 +33,10 @@ export default function Page() {
     .filter((p) => p.source === "transfer")
     .map((p) => ({
       ...p,
-      studentName: students.get(p.student_id)?.name ?? "",
-      studentCode: students.get(p.student_id)?.code ?? "",
+      studentName: byId.get(p.student_id)?.name ?? "",
+      studentCode: byId.get(p.student_id)?.code ?? "",
       recent: recentByStudent.get(p.student_id) ?? [],
     }));
 
-  return <ReviewQueue initialItems={items} bankName={demoSettings.bankName} />;
+  return <ReviewQueue initialItems={items} reviewerName={profile.full_name} />;
 }

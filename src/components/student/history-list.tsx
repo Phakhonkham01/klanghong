@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Banknote, ChevronRight, ImageOff, Inbox } from "lucide-react";
+import { Banknote, ChevronRight, Inbox } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Drawer,
@@ -11,7 +11,8 @@ import {
   DrawerDescription,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import type { DemoPayment } from "@/lib/demo";
+import { SlipImage } from "@/components/slip-image";
+import type { PaymentView } from "@/lib/data/types";
 import { formatDateTimeLo, formatMonthLo, formatWeekRange } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import { formatKip } from "@/lib/money";
@@ -48,7 +49,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function Detail({ payment }: { payment: DemoPayment }) {
+function Detail({ payment }: { payment: PaymentView }) {
   const style = paymentStyle[payment.status];
   const Icon = style.icon;
   return (
@@ -76,17 +77,18 @@ function Detail({ payment }: { payment: DemoPayment }) {
           </div>
         ) : null}
 
-        <div className="mt-4 grid h-40 place-items-center rounded-2xl border-2 border-dashed text-center text-muted-foreground">
+        <div className="mt-4 grid min-h-40 place-items-center overflow-hidden rounded-2xl border-2 border-dashed p-2 text-center text-muted-foreground">
           {payment.source === "cash" ? (
             <span className="flex flex-col items-center gap-2 font-bold text-status-paid">
               <Banknote className="size-10" strokeWidth={2} aria-hidden />
               {lo.history.cash}
             </span>
           ) : (
-            <span className="flex flex-col items-center gap-2 text-sm">
-              <ImageOff className="size-8" aria-hidden />
-              {lo.history.noSlipPreview}
-            </span>
+            <SlipImage
+              paymentId={payment.id}
+              alt={`${lo.committee.review.slip} ${formatWeekRange(payment.week_start)}`}
+              className="max-h-96 min-h-36 w-full rounded-xl"
+            />
           )}
         </div>
 
@@ -128,9 +130,9 @@ function Detail({ payment }: { payment: DemoPayment }) {
   );
 }
 
-export function HistoryList({ payments }: { payments: DemoPayment[] }) {
+export function HistoryList({ payments }: { payments: PaymentView[] }) {
   const [filter, setFilter] = useState<Filter>("all");
-  const [selected, setSelected] = useState<DemoPayment | null>(null);
+  const [selected, setSelected] = useState<PaymentView | null>(null);
 
   const counts = useMemo(() => {
     const c = { all: payments.length, approved: 0, pending: 0, rejected: 0 };
@@ -145,7 +147,7 @@ export function HistoryList({ payments }: { payments: DemoPayment[] }) {
   // Group by month of the week the payment is for (already newest first).
   const groups = useMemo(() => {
     const list = filter === "all" ? payments : payments.filter((p) => p.status === filter);
-    const map = new Map<string, DemoPayment[]>();
+    const map = new Map<string, PaymentView[]>();
     for (const p of list) {
       const key = formatMonthLo(p.week_start);
       map.set(key, [...(map.get(key) ?? []), p]);

@@ -1,9 +1,9 @@
 import { PayFlow, type PayWeekOption } from "@/components/student/pay-flow";
-import { demoPayments, demoSettings } from "@/lib/demo";
+import { requireSession } from "@/lib/auth";
+import { getPayments, getSettings } from "@/lib/data/queries";
 import { lo } from "@/lib/i18n/lo";
 import { buildStudentWeeks, defaultPayWeek } from "@/lib/status";
 
-export const dynamic = "force-dynamic";
 export const metadata = { title: lo.nav.pay };
 
 export default async function Page({
@@ -12,8 +12,13 @@ export default async function Page({
   searchParams: Promise<{ week?: string | string[] }>;
 }) {
   const { week } = await searchParams;
+  const { userId } = await requireSession();
   const now = new Date();
-  const entries = buildStudentWeeks(demoSettings.startDate, demoPayments(now), now);
+  const [settings, payments] = await Promise.all([
+    getSettings(),
+    getPayments({ studentId: userId }),
+  ]);
+  const entries = buildStudentWeeks(settings.startDate, payments, now);
 
   const options: PayWeekOption[] = entries
     .filter((e) => e.isPayable)
@@ -29,12 +34,12 @@ export default async function Page({
     <PayFlow
       options={options}
       initialWeeks={initial ? [initial] : []}
-      weeklyAmount={demoSettings.weeklyAmount}
+      weeklyAmount={settings.weeklyAmount}
       bank={{
-        name: demoSettings.bankName,
-        accountName: demoSettings.accountName,
-        accountNo: demoSettings.accountNo,
-        qrUrl: demoSettings.qrUrl,
+        name: settings.bankName,
+        accountName: settings.accountName,
+        accountNo: settings.accountNo,
+        qrUrl: settings.qrUrl,
       }}
     />
   );

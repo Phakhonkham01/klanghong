@@ -18,7 +18,8 @@
     "db:status": "tsx --env-file=.env.local scripts/migrate.mts --status",
     "test:rls": "tsx --env-file=.env.local scripts/rls-test.mts",
     "setup:env": "tsx scripts/setup-env.mts",
-    "test:auth": "tsx --env-file=.env.local scripts/auth-flow-test.mts"
+    "test:auth": "tsx --env-file=.env.local scripts/auth-flow-test.mts",
+    "test:e2e": "tsx --env-file=.env.local scripts/e2e-actions.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

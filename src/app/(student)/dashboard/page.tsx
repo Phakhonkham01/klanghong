@@ -5,7 +5,8 @@ import { dotClass } from "@/components/student/status-style";
 import { WeekHero } from "@/components/student/week-hero";
 import { WeekPath } from "@/components/student/week-path";
 import { buttonVariants } from "@/components/ui/button";
-import { demoFundTotal, demoPayments, demoSettings, demoStudent } from "@/lib/demo";
+import { requireSession } from "@/lib/auth";
+import { getFundSummary, getPayments, getSettings } from "@/lib/data/queries";
 import { formatDateLo } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import { formatKip } from "@/lib/money";
@@ -13,14 +14,17 @@ import { buildStudentWeeks, computeStreak, summarizeOutstanding } from "@/lib/st
 import { cn } from "@/lib/utils";
 import { daysUntilDeadline } from "@/lib/week";
 
-export const dynamic = "force-dynamic";
-
-export default function Page() {
+export default async function Page() {
+  const { userId } = await requireSession();
   const now = new Date();
-  const payments = demoPayments(now);
-  const entries = buildStudentWeeks(demoSettings.startDate, payments, now);
+  const [settings, payments, fund] = await Promise.all([
+    getSettings(),
+    getPayments({ studentId: userId }),
+    getFundSummary(),
+  ]);
+  const entries = buildStudentWeeks(settings.startDate, payments, now);
   const current = entries.at(-1);
-  const outstanding = summarizeOutstanding(entries, demoSettings.weeklyAmount);
+  const outstanding = summarizeOutstanding(entries, settings.weeklyAmount);
   const paidTotal = payments
     .filter((p) => p.status === "approved")
     .reduce((sum, p) => sum + p.amount, 0);
@@ -31,14 +35,14 @@ export default function Page() {
         streak={computeStreak(entries)}
         paidTotal={paidTotal}
         outstanding={outstanding.count}
-        fund={demoFundTotal}
+        fund={fund.balance}
       />
 
       <div className="sticky top-16 z-20 -mx-1 bg-background/90 px-1 pb-2 backdrop-blur">
         {current ? (
           <WeekHero
             entry={current}
-            amount={demoSettings.weeklyAmount}
+            amount={settings.weeklyAmount}
             daysLeft={daysUntilDeadline(now)}
           />
         ) : null}
@@ -87,10 +91,6 @@ export default function Page() {
       ) : null}
 
       <WeekPath entries={entries} />
-
-      <p className="text-center text-xs text-muted-foreground">
-        {demoStudent.name} · {lo.dashboard.demo}
-      </p>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { submitPaymentAction } from "@/app/actions/payments";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatWeekRange } from "@/lib/format";
@@ -30,7 +31,23 @@ export type PayWeekOption = { weekStart: IsoDate; status: WeekStatus; isCurrent:
 type Bank = { name: string; accountName: string; accountNo: string; qrUrl: string | null };
 
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
-const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_BYTES = 15 * 1024 * 1024; // before compression
+
+/** Shrink phone photos (~1600px, ≤1 MB) before upload; falls back to the original. */
+async function compressSlip(file: File): Promise<File> {
+  try {
+    const { default: imageCompression } = await import("browser-image-compression");
+    const out = await imageCompression(file, {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1600,
+      initialQuality: 0.8,
+      useWebWorker: true,
+    });
+    return new File([out], file.name, { type: out.type || file.type });
+  } catch {
+    return file;
+  }
+}
 const STEP_ICONS: LucideIcon[] = [CalendarCheck, Landmark, ImageUp];
 
 function WeekTile({
@@ -102,6 +119,8 @@ export function PayFlow({
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [burst, setBurst] = useState(false);
+  const [reference, setReference] = useState("");
+  const [note, setNote] = useState("");
 
   const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
@@ -124,10 +143,25 @@ export function PayFlow({
 
   async function onPrimary() {
     if (step < 2) return setStep(step + 1);
+    if (!file) return;
     setSubmitting(true);
-    // Demo only: real upload + server action arrives with Supabase (Phase 2/3).
-    await new Promise((r) => setTimeout(r, 600));
-    setSubmitting(false);
+    try {
+      const form = new FormData();
+      for (const w of ordered.map((o) => o.weekStart)) form.append("weeks", w);
+      form.append("slip", await compressSlip(file));
+      form.append("reference", reference);
+      form.append("note", note);
+      const result = await submitPaymentAction(form);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+    } catch {
+      toast.error(lo.errors.generic);
+      return;
+    } finally {
+      setSubmitting(false);
+    }
     setDone(true);
     setBurst(true);
     setTimeout(() => setBurst(false), 1400);
@@ -288,12 +322,16 @@ export function PayFlow({
               </label>
               <div className="mt-5 space-y-3">
                 <Input
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
                   placeholder={lo.pay.reference}
                   aria-label={lo.pay.reference}
                   maxLength={64}
                   className="h-12 rounded-2xl border-2 px-4"
                 />
                 <Input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
                   placeholder={lo.pay.note}
                   aria-label={lo.pay.note}
                   maxLength={200}

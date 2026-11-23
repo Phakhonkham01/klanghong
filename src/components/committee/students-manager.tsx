@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { KeyRound, MoreHorizontal, Power, Search, Upload, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { DemoStudent } from "@/lib/demo-committee";
+import {
+  createStudentAction,
+  importStudentsAction,
+  resetPasswordAction,
+  setActiveAction,
+  type CreatedAccount,
+} from "@/app/actions/students";
+import { downloadCsv } from "@/lib/csv";
+import type { ActionResult, StudentView } from "@/lib/data/types";
 import { lo } from "@/lib/i18n/lo";
 import { cn } from "@/lib/utils";
 
@@ -21,14 +30,17 @@ const t = lo.committee.students;
 const CODE_RE = /^[A-Za-z0-9]{3,20}$/;
 const field = "h-11 rounded-2xl border-2 px-4 text-base md:text-sm";
 
-export function StudentsManager({ initial }: { initial: DemoStudent[] }) {
-  const [students, setStudents] = useState(initial);
+export function StudentsManager({ initial }: { initial: StudentView[] }) {
+  const router = useRouter();
+  const students = initial;
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [bulk, setBulk] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [credentials, setCredentials] = useState<CreatedAccount[] | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -37,42 +49,59 @@ export function StudentsManager({ initial }: { initial: DemoStudent[] }) {
       : students;
   }, [students, query]);
 
-  const codes = new Set(students.map((s) => s.code.toUpperCase()));
-
-  function add() {
-    const c = code.trim().toUpperCase();
-    if (!CODE_RE.test(c)) return void toast.error(t.invalidCode);
-    if (codes.has(c)) return void toast.error(t.duplicateCode);
-    if (!name.trim()) return void toast.error(t.nameRequired);
-    setStudents((s) => [
-      ...s,
-      { id: `new-${c}`, code: c, name: name.trim(), phone: null, isActive: true, role: "student" },
-    ]);
-    toast.success(t.added);
-    setCode("");
-    setName("");
-    setAdding(false);
-  }
-
-  function importBulk() {
-    const seen = new Set(codes);
-    const rows: DemoStudent[] = [];
-    for (const line of bulk.split(/\r?\n/)) {
-      const [rawCode, ...rest] = line.split(",");
-      const c = rawCode?.trim().toUpperCase() ?? "";
-      const n = rest.join(",").trim();
-      if (!CODE_RE.test(c) || !n || seen.has(c)) continue;
-      seen.add(c);
-      rows.push({ id: `new-${c}`, code: c, name: n, phone: null, isActive: true, role: "student" });
+  async function run<T>(fn: () => Promise<ActionResult<T>>): Promise<ActionResult<T> | null> {
+    setBusy(true);
+    try {
+      const r = await fn();
+      if (!r.ok) toast.error(r.error);
+      return r;
+    } catch {
+      toast.error(lo.errors.generic);
+      return null;
+    } finally {
+      setBusy(false);
     }
-    setStudents((s) => [...s, ...rows]);
-    toast.success(t.imported(rows.length));
-    setBulk("");
-    setImporting(false);
   }
 
-  function toggleActive(id: string) {
-    setStudents((s) => s.map((x) => (x.id === id ? { ...x, isActive: !x.isActive } : x)));
+  async function add() {
+    if (!CODE_RE.test(code.replace(/\s+/g, "").toUpperCase()))
+      return void toast.error(t.invalidCode);
+    if (!name.trim()) return void toast.error(t.nameRequired);
+    const r = await run(() => createStudentAction(code, name));
+    if (r?.ok) {
+      toast.success(t.added);
+      setCode("");
+      setName("");
+      setAdding(false);
+      setCredentials([r.data]);
+      router.refresh();
+    }
+  }
+
+  async function importBulk() {
+    const r = await run(() => importStudentsAction(bulk));
+    if (r?.ok) {
+      toast.success(t.imported(r.data.created.length));
+      if (r.data.skipped) toast.warning(t.importSkipped(r.data.skipped));
+      setBulk("");
+      setImporting(false);
+      if (r.data.created.length) setCredentials(r.data.created);
+      router.refresh();
+    }
+  }
+
+  async function resetPassword(id: string) {
+    const r = await run(() => resetPasswordAction(id));
+    if (r?.ok) {
+      toast.success(t.resetDone(r.data.code));
+      setCredentials([r.data]);
+      router.refresh();
+    }
+  }
+
+  async function toggleActive(id: string, active: boolean) {
+    const r = await run(() => setActiveAction(id, active));
+    if (r?.ok) router.refresh();
   }
 
   return (
@@ -102,6 +131,12 @@ export function StudentsManager({ initial }: { initial: DemoStudent[] }) {
           className={cn(field, "pl-10")}
         />
       </div>
+
+      {filtered.length === 0 ? (
+        <p className="rounded-2xl border-2 border-dashed py-14 text-center text-muted-foreground">
+          {students.length === 0 ? t.empty : lo.committee.members.noMatch}
+        </p>
+      ) : null}
 
       <ul className="divide-y-2 overflow-hidden rounded-2xl border-2">
         {filtered.map((s) => (
@@ -134,6 +169,11 @@ export function StudentsManager({ initial }: { initial: DemoStudent[] }) {
             >
               {s.isActive ? t.active : t.inactive}
             </span>
+            {s.mustChangePassword && s.isActive ? (
+              <span className="hidden rounded-full bg-status-pending-bg px-2.5 py-0.5 text-xs font-bold text-status-pending sm:inline">
+                {t.mustChange}
+              </span>
+            ) : null}
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={<Button variant="ghost" size="icon" aria-label={t.actions} />}
@@ -141,11 +181,12 @@ export function StudentsManager({ initial }: { initial: DemoStudent[] }) {
                 <MoreHorizontal />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-48">
-                <DropdownMenuItem onClick={() => toast.success(t.resetDone(s.code))}>
+                <DropdownMenuItem disabled={busy} onClick={() => resetPassword(s.id)}>
                   <KeyRound /> {t.resetPassword}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => toggleActive(s.id)}
+                  disabled={busy}
+                  onClick={() => toggleActive(s.id, !s.isActive)}
                   variant={s.isActive ? "destructive" : "default"}
                 >
                   <Power /> {s.isActive ? t.deactivate : t.activate}
@@ -176,7 +217,7 @@ export function StudentsManager({ initial }: { initial: DemoStudent[] }) {
             maxLength={80}
             className={field}
           />
-          <Button variant="chunky" size="xl" className="mt-2" onClick={add}>
+          <Button variant="chunky" size="xl" className="mt-2" disabled={busy} onClick={add}>
             {lo.common.save}
           </Button>
         </DialogContent>
@@ -193,8 +234,40 @@ export function StudentsManager({ initial }: { initial: DemoStudent[] }) {
             aria-label={t.import}
             className="min-h-36 rounded-2xl border-2 p-3 money"
           />
-          <Button variant="chunky" size="xl" disabled={!bulk.trim()} onClick={importBulk}>
+          <Button variant="chunky" size="xl" disabled={!bulk.trim() || busy} onClick={importBulk}>
             {t.importCta}
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={credentials !== null} onOpenChange={(o) => !o && setCredentials(null)}>
+        <DialogContent className="max-h-[85dvh] gap-3 overflow-y-auto rounded-3xl p-5 sm:max-w-md">
+          <DialogTitle className="text-lg font-bold">{t.tempPasswordTitle}</DialogTitle>
+          <DialogDescription>{t.tempPasswordHint}</DialogDescription>
+          <ul className="divide-y-2 rounded-2xl border-2">
+            {credentials?.map((c) => (
+              <li key={c.code} className="flex items-center justify-between gap-3 px-3 py-2">
+                <span className="min-w-0">
+                  <span className="block money font-bold">{c.code}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{c.name}</span>
+                </span>
+                <code className="rounded-lg bg-muted px-2 py-1 money text-base font-bold select-all">
+                  {c.password}
+                </code>
+              </li>
+            ))}
+          </ul>
+          <Button
+            variant="tile"
+            size="xl"
+            onClick={() =>
+              downloadCsv("klanghong-temp-passwords.csv", [
+                [t.code, t.name, t.tempPasswordTitle],
+                ...(credentials ?? []).map((c) => [c.code, c.name, c.password]),
+              ])
+            }
+          >
+            {t.downloadPasswords}
           </Button>
         </DialogContent>
       </Dialog>

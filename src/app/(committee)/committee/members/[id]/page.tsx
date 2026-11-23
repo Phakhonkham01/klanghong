@@ -3,22 +3,23 @@ import { ArrowLeft, CircleCheck, Coins, TriangleAlert } from "lucide-react";
 import { StatTile } from "@/components/committee/bits";
 import { CashPaymentButton } from "@/components/committee/cash-payment";
 import { nodeStyle, paymentStyle } from "@/components/student/status-style";
-import { demoSettings } from "@/lib/demo";
-import { demoAllPayments, demoStudents } from "@/lib/demo-committee";
+import { requireSession } from "@/lib/auth";
+import { getPayments, getSettings, getStudent } from "@/lib/data/queries";
 import { formatDateLo, formatDateTimeLo, formatWeekRange } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import { formatKip } from "@/lib/money";
 import { buildStudentWeeks, summarizeOutstanding } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
-export const dynamic = "force-dynamic";
 export const metadata = { title: lo.nav.members };
 
 const t = lo.committee.members;
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const student = demoStudents.find((s) => s.id === id);
+  await requireSession("committee");
+  const isUuid = /^[0-9a-f-]{36}$/i.test(id);
+  const student = isUuid ? await getStudent(id) : null;
   if (!student) {
     return (
       <div className="py-16 text-center">
@@ -31,11 +32,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   }
 
   const now = new Date();
-  const payments = demoAllPayments(now)
-    .filter((p) => p.student_id === id)
-    .sort((a, b) => b.created_at.localeCompare(a.created_at));
-  const entries = buildStudentWeeks(demoSettings.startDate, payments, now);
-  const outstanding = summarizeOutstanding(entries, demoSettings.weeklyAmount);
+  const [settings, payments] = await Promise.all([getSettings(), getPayments({ studentId: id })]);
+  const entries = buildStudentWeeks(settings.startDate, payments, now);
+  const outstanding = summarizeOutstanding(entries, settings.weeklyAmount);
   const paidTotal = payments
     .filter((p) => p.status === "approved")
     .reduce((s, p) => s + p.amount, 0);
@@ -61,7 +60,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             {student.phone ? ` · ${student.phone}` : ""}
           </p>
         </div>
-        <CashPaymentButton weeks={payable} studentName={student.name} />
+        <CashPaymentButton weeks={payable} studentId={student.id} studentName={student.name} />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">

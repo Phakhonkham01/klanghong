@@ -1,10 +1,9 @@
 import { MembersMatrix } from "@/components/committee/members-matrix";
-import { demoSettings } from "@/lib/demo";
-import { demoAllPayments, demoStudents } from "@/lib/demo-committee";
+import { requireSession } from "@/lib/auth";
+import { getPayments, getSettings, getStudents } from "@/lib/data/queries";
 import { lo } from "@/lib/i18n/lo";
 import { buildMemberRows } from "@/lib/members";
 
-export const dynamic = "force-dynamic";
 export const metadata = { title: lo.nav.members };
 
 export default async function Page({
@@ -13,12 +12,18 @@ export default async function Page({
   searchParams: Promise<{ filter?: string }>;
 }) {
   const { filter } = await searchParams;
+  await requireSession("committee");
   const now = new Date();
+  const [settings, payments, students] = await Promise.all([
+    getSettings(),
+    getPayments(),
+    getStudents(),
+  ]);
   const { weeks, rows } = buildMemberRows(
-    demoStudents,
-    demoAllPayments(now),
-    demoSettings.startDate,
-    demoSettings.weeklyAmount,
+    students,
+    payments,
+    settings.startDate,
+    settings.weeklyAmount,
     now,
   );
   const initialFilter = filter === "overdue" || filter === "unpaid" ? filter : "all";

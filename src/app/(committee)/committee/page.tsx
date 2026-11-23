@@ -1,26 +1,16 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  Check,
-  Coins,
-  Hourglass,
-  Plus,
-  Receipt,
-  RotateCcw,
-  Settings,
-  TriangleAlert,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowRight, Coins, Hourglass, Plus, Receipt, TriangleAlert } from "lucide-react";
+import { auditIcon } from "@/components/committee/audit-icons";
 import { ChunkyProgress, SectionCard, StatTile } from "@/components/committee/bits";
 import { buttonVariants } from "@/components/ui/button";
-import { demoSettings } from "@/lib/demo";
+import { requireSession } from "@/lib/auth";
 import {
-  demoAllPayments,
-  demoAudit,
-  demoExpenses,
-  demoStudents,
-  type DemoAudit,
-} from "@/lib/demo-committee";
+  getAudit,
+  getFundSummary,
+  getPayments,
+  getSettings,
+  getStudents,
+} from "@/lib/data/queries";
 import { formatDateTimeLo, formatWeekRange } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import { formatKip } from "@/lib/money";
@@ -28,28 +18,24 @@ import { buildStudentWeeks, summarizeOutstanding } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { currentWeekStart } from "@/lib/week";
 
-export const dynamic = "force-dynamic";
 export const metadata = { title: lo.nav.committee };
 
-const auditIcon: Record<DemoAudit["action"], { icon: LucideIcon; tone: string }> = {
-  approve: { icon: Check, tone: "bg-status-paid text-white" },
-  reject: { icon: RotateCcw, tone: "bg-status-rejected text-white" },
-  expense_create: { icon: Receipt, tone: "bg-sky text-white" },
-  settings_update: { icon: Settings, tone: "bg-muted-foreground text-white" },
-  cash_payment: { icon: Coins, tone: "bg-status-paid text-white" },
-};
-
-export default function Page() {
+export default async function Page() {
+  await requireSession("committee");
   const now = new Date();
-  const payments = demoAllPayments(now);
+  const [settings, payments, fund, students, audit] = await Promise.all([
+    getSettings(),
+    getPayments(),
+    getFundSummary(),
+    getStudents(),
+    getAudit(6),
+  ]);
   const week = currentWeekStart(now);
-  const active = demoStudents.filter((s) => s.isActive);
+  const active = students.filter((s) => s.isActive);
 
-  const collected = payments
-    .filter((p) => p.status === "approved")
-    .reduce((s, p) => s + p.amount, 0);
-  const spent = demoExpenses.reduce((s, e) => s + e.amount, 0);
-  const pending = payments.filter((p) => p.status === "pending").length;
+  const collected = fund.totalApproved;
+  const spent = fund.totalExpenses;
+  const pending = fund.pendingCount;
 
   const thisWeek = payments.filter((p) => p.week_start === week);
   const paidNow = thisWeek.filter((p) => p.status === "approved").length;
@@ -58,16 +44,16 @@ export default function Page() {
   const owing = active
     .map((s) => {
       const entries = buildStudentWeeks(
-        demoSettings.startDate,
+        settings.startDate,
         payments.filter((p) => p.student_id === s.id),
         now,
       );
-      return { student: s, ...summarizeOutstanding(entries, demoSettings.weeklyAmount) };
+      return { student: s, ...summarizeOutstanding(entries, settings.weeklyAmount) };
     })
     .filter((o) => o.count > 0)
     .sort((a, b) => b.count - a.count);
 
-  const activity = demoAudit(payments).slice(0, 6);
+  const activity = audit;
 
   return (
     <div className="space-y-5">
@@ -85,7 +71,7 @@ export default function Page() {
       {/* Balance hero */}
       <section className="press-3d rounded-2xl bg-sky p-5 text-white [--press-shade:var(--sky-shade)] active:transform-none">
         <p className="text-sm font-bold text-white/85">{lo.committee.overview.balance}</p>
-        <p className="mt-1 money text-4xl font-black">{formatKip(collected - spent)}</p>
+        <p className="mt-1 money text-4xl font-black">{formatKip(fund.balance)}</p>
       </section>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -127,7 +113,7 @@ export default function Page() {
           <p className="mt-1 text-sm text-muted-foreground">
             {lo.committee.overview.expected}{" "}
             <span className="money font-bold text-foreground">
-              {formatKip(active.length * demoSettings.weeklyAmount)}
+              {formatKip(active.length * settings.weeklyAmount)}
             </span>
           </p>
         </SectionCard>

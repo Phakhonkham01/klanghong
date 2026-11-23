@@ -11,13 +11,12 @@ import {
 import { DarkModeRow } from "@/components/student/dark-mode-row";
 import { signOutAction } from "@/app/(auth)/actions";
 import { requireSession } from "@/lib/auth";
-import { demoPayments, demoSettings } from "@/lib/demo";
+import { getPayments, getSettings } from "@/lib/data/queries";
 import { lo } from "@/lib/i18n/lo";
 import { formatKip } from "@/lib/money";
 import { buildStudentWeeks, computeStreak, summarizeOutstanding } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
-export const dynamic = "force-dynamic";
 export const metadata = { title: lo.nav.profile };
 
 function StatCard({
@@ -46,15 +45,18 @@ const rowClass =
   "flex w-full items-center gap-3 px-4 py-3.5 text-left font-bold transition-colors hover:bg-muted/60";
 
 export default async function Page() {
-  const { profile } = await requireSession();
+  const { profile, userId } = await requireSession();
   const now = new Date();
-  const payments = demoPayments(now);
-  const entries = buildStudentWeeks(demoSettings.startDate, payments, now);
+  const [settings, payments] = await Promise.all([
+    getSettings(),
+    getPayments({ studentId: userId }),
+  ]);
+  const entries = buildStudentWeeks(settings.startDate, payments, now);
   const paidWeeks = entries.filter((e) => e.status === "paid").length;
   const paidTotal = payments
     .filter((p) => p.status === "approved")
     .reduce((s, p) => s + p.amount, 0);
-  const outstanding = summarizeOutstanding(entries, demoSettings.weeklyAmount);
+  const outstanding = summarizeOutstanding(entries, settings.weeklyAmount);
   const pct = entries.length ? Math.round((paidWeeks / entries.length) * 100) : 0;
 
   return (
@@ -152,7 +154,7 @@ export default async function Page() {
       </section>
 
       <p className="text-center text-xs text-muted-foreground">
-        {lo.app.name} · {lo.profile.version} 0.1.0 · {lo.dashboard.demo}
+        {lo.app.name} · {lo.profile.version} 0.1.0
       </p>
     </div>
   );

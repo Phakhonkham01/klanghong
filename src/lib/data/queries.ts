@@ -1,0 +1,173 @@
+import "server-only";
+import { formatWeekRange } from "@/lib/format";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { AuditRow, PaymentRow, ProfileRow } from "@/types/database";
+import type {
+  AuditAction,
+  AuditView,
+  ExpenseView,
+  FundSummary,
+  PaymentView,
+  SettingsView,
+  StudentView,
+} from "./types";
+
+/** All reads go through the signed-in user's client, so RLS decides what comes back. */
+
+export async function getSettings(): Promise<SettingsView> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.from("settings").select("*").eq("id", 1).single();
+  if (error || !data) throw new Error(`settings: ${error?.message ?? "missing"}`);
+  let qrUrl: string | null = null;
+  if (data.qr_path) {
+    const { data: signed } = await supabase.storage
+      .from("settings")
+      .createSignedUrl(data.qr_path, 60 * 60);
+    qrUrl = signed?.signedUrl ?? null;
+  }
+  return {
+    weeklyAmount: Number(data.weekly_amount),
+    startDate: data.start_date,
+    bankName: data.bank_name ?? "",
+    accountName: data.account_name ?? "",
+    accountNo: data.account_no ?? "",
+    qrPath: data.qr_path,
+    qrUrl,
+    note: data.note ?? "",
+  };
+}
+
+export async function getFundSummary(): Promise<FundSummary> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("get_fund_summary");
+  if (error) throw new Error(`fund: ${error.message}`);
+  const row = data?.[0];
+  return {
+    totalApproved: Number(row?.total_approved ?? 0),
+    totalExpenses: Number(row?.total_expenses ?? 0),
+    balance: Number(row?.balance ?? 0),
+    pendingCount: Number(row?.pending_count ?? 0),
+  };
+}
+
+function toPaymentView(p: PaymentRow, names: Map<string, string>): PaymentView {
+  return {
+    id: p.id,
+    student_id: p.student_id,
+    week_start: p.week_start,
+    status: p.status,
+    amount: Number(p.amount),
+    created_at: p.created_at,
+    reject_reason: p.reject_reason,
+    source: p.source,
+    hasSlip: !!p.slip_path,
+    reviewed_at: p.reviewed_at,
+    reviewer: p.reviewed_by ? (names.get(p.reviewed_by) ?? null) : null,
+    reference: p.transfer_ref,
+    note: p.note,
+    self_reviewed: p.self_reviewed,
+  };
+}
+
+/** Payments visible to the caller: own rows for students, everyone's for committee. */
+export async function getPayments(filter?: { studentId?: string }): Promise<PaymentView[]> {
+  const supabase = await createSupabaseServerClient();
+  let q = supabase.from("payments").select("*").order("created_at", { ascending: false });
+  if (filter?.studentId) q = q.eq("student_id", filter.studentId);
+  const { data, error } = await q;
+  if (error) throw new Error(`payments: ${error.message}`);
+  const rows = data ?? [];
+  const names = await getProfileNames(rows.map((r) => r.reviewed_by).filter(Boolean) as string[]);
+  return rows.map((r) => toPaymentView(r, names));
+}
+
+/** Names for the given profile ids that the caller is allowed to read. */
+async function getProfileNames(ids: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(ids)];
+  if (!unique.length) return new Map();
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.from("profiles").select("id, full_name").in("id", unique);
+  return new Map((data ?? []).map((p) => [p.id, p.full_name]));
+}
+
+function toStudentView(p: ProfileRow): StudentView {
+  return {
+    id: p.id,
+    code: p.student_code,
+    name: p.full_name,
+    phone: p.phone,
+    isActive: p.is_active,
+    role: p.role,
+    mustChangePassword: p.must_change_password,
+  };
+}
+
+/** Committee only (RLS returns just the caller's own row for students). */
+export async function getStudents(): Promise<StudentView[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.from("profiles").select("*").order("student_code");
+  if (error) throw new Error(`profiles: ${error.message}`);
+  return (data ?? []).map(toStudentView);
+}
+
+export async function getStudent(id: string): Promise<StudentView | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
+  return data ? toStudentView(data) : null;
+}
+
+export async function getExpenses(): Promise<ExpenseView[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("expenses")
+    .select("*")
+    .order("spent_at", { ascending: false });
+  if (error) throw new Error(`expenses: ${error.message}`);
+  return (data ?? []).map((e) => ({
+    id: e.id,
+    title: e.title,
+    amount: Number(e.amount),
+    spent_at: e.spent_at,
+    note: e.note,
+    hasReceipt: !!e.receipt_path,
+  }));
+}
+
+function describeAudit(row: AuditRow, names: Map<string, string>): string {
+  const m = row.meta as Record<string, unknown>;
+  if (row.entity === "payment") {
+    const who = names.get(String(m.student_id)) ?? "";
+    const week = typeof m.week_start === "string" ? formatWeekRange(m.week_start) : "";
+    const reason = typeof m.reason === "string" && m.reason ? ` · ${m.reason}` : "";
+    return `${who} · ${week}${reason}`;
+  }
+  if (row.entity === "expense") return `${m.title ?? ""}`;
+  if (row.entity === "settings") {
+    const amount = m.weekly_amount as [number, number] | undefined;
+    return amount && amount[0] !== amount[1] ? `${amount[0]} → ${amount[1]} ₭` : "";
+  }
+  return "";
+}
+
+export async function getAudit(limit = 100): Promise<AuditView[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("audit_log")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`audit: ${error.message}`);
+  const rows = data ?? [];
+  const ids = rows.flatMap((r) => [
+    r.actor_id,
+    (r.meta as Record<string, unknown>)?.student_id as string | undefined,
+  ]);
+  const names = await getProfileNames(ids.filter((x): x is string => !!x));
+  return rows.map((r) => ({
+    id: r.id,
+    actor: (r.actor_id && names.get(r.actor_id)) || "—",
+    action: r.action as AuditAction,
+    detail: describeAudit(r, names),
+    created_at: r.created_at,
+  }));
+}

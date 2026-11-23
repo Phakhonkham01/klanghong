@@ -23,6 +23,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Lets `NEXT_DIST_DIR=.next-build next build` run while `next dev` uses .next.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   experimental: {
     serverActions: { bodySizeLimit: "6mb" },

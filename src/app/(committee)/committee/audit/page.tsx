@@ -1,28 +1,26 @@
-import { Check, Coins, Receipt, RotateCcw, Settings, type LucideIcon } from "lucide-react";
-import { demoAllPayments, demoAudit, type DemoAudit } from "@/lib/demo-committee";
+import { auditIcon } from "@/components/committee/audit-icons";
+import { requireSession } from "@/lib/auth";
+import { getAudit } from "@/lib/data/queries";
 import { formatDateTimeLo } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import { cn } from "@/lib/utils";
 
-export const dynamic = "force-dynamic";
 export const metadata = { title: lo.nav.audit };
 
-const icons: Record<DemoAudit["action"], { icon: LucideIcon; tone: string }> = {
-  approve: { icon: Check, tone: "bg-status-paid text-white" },
-  reject: { icon: RotateCcw, tone: "bg-status-rejected text-white" },
-  expense_create: { icon: Receipt, tone: "bg-sky text-white" },
-  settings_update: { icon: Settings, tone: "bg-muted-foreground text-white" },
-  cash_payment: { icon: Coins, tone: "bg-status-paid text-white" },
-};
-
-export default function Page() {
-  const entries = demoAudit(demoAllPayments(new Date()));
+export default async function Page() {
+  await requireSession("committee");
+  const entries = await getAudit(200);
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">{lo.committee.audit.title}</h1>
+      {entries.length === 0 ? (
+        <p className="rounded-2xl border-2 border-dashed py-14 text-center text-muted-foreground">
+          {lo.committee.audit.empty}
+        </p>
+      ) : null}
       <ol className="relative space-y-3 before:absolute before:top-2 before:bottom-2 before:left-[1.1rem] before:w-0.5 before:bg-border">
         {entries.map((a) => {
-          const { icon: Icon, tone } = icons[a.action];
+          const { icon: Icon, tone } = auditIcon[a.action];
           return (
             <li key={a.id} className="relative flex items-start gap-3">
               <span

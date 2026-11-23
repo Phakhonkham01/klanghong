@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Banknote } from "lucide-react";
 import { toast } from "sonner";
+import { addCashPaymentAction } from "@/app/actions/payments";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -15,13 +16,17 @@ const t = lo.committee.members;
 /** Record cash received for one or more open weeks (demo: toast only). */
 export function CashPaymentButton({
   weeks,
+  studentId,
   studentName,
 }: {
   weeks: IsoDate[];
+  studentId: string;
   studentName: string;
 }) {
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<IsoDate[]>([]);
+  const [note, setNote] = useState<string>(lo.history.cash);
+  const [saving, setSaving] = useState(false);
 
   return (
     <>
@@ -61,16 +66,22 @@ export function CashPaymentButton({
             ))}
           </div>
           <Input
-            defaultValue={lo.history.cash}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={200}
             aria-label={lo.history.note}
             className="h-11 rounded-2xl border-2 px-4"
           />
           <Button
             variant="chunky"
             size="xl"
-            disabled={picked.length === 0}
-            onClick={() => {
-              toast.success(t.cashSaved);
+            disabled={picked.length === 0 || saving}
+            onClick={async () => {
+              setSaving(true);
+              const r = await addCashPaymentAction(studentId, picked, note).catch(() => null);
+              setSaving(false);
+              if (!r || !r.ok) return void toast.error(r && !r.ok ? r.error : lo.errors.generic);
+              toast.success(t.cashSavedReal(r.data));
               setOpen(false);
             }}
           >
