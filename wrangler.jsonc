@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "klanghong",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-01",
+  // nodejs_compat: node:crypto, Buffer, process.env for secrets.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  // Run the Worker close to Supabase (each page makes several DB calls), not at the user's edge.
+  "placement": { "mode": "smart" },
+  "observability": { "enabled": true },
+}

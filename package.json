@@ -20,7 +20,11 @@
     "setup:env": "tsx scripts/setup-env.mts",
     "test:auth": "tsx --env-file=.env.local scripts/auth-flow-test.mts",
     "test:e2e": "tsx --env-file=.env.local scripts/e2e-actions.mts",
-    "test:otp": "tsx --env-file=.env.local scripts/otp-e2e.mts"
+    "test:otp": "tsx --env-file=.env.local scripts/otp-e2e.mts",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf:secrets": "tsx scripts/cf-secrets.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -49,6 +53,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@opennextjs/cloudflare": "1.20.16",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -63,6 +68,7 @@
     "tsx": "^4.23.15",
     "typescript": "^5",
     "vite-tsconfig-paths": "^6.1.1",
-    "vitest": "^5.1.1"
+    "vitest": "^5.1.1",
+    "wrangler": "4.158.0"
   }
 }

@@ -4,3 +4,5 @@ node_modules
 src/types/database.ts
 docs/klanghong-claude-code-prompt.md
 .next-build
+.open-next
+.wrangler
