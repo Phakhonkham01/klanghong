@@ -126,6 +126,17 @@ export const lo = {
     inactive: "ບັນຊີນີ້ຖືກປິດການໃຊ້ງານ ກະລຸນາຕິດຕໍ່ຄະນະກຳມະການ",
     tooMany: "ພະຍາຍາມຫຼາຍເກີນໄປ ກະລຸນາລໍຖ້າບຶດໜຶ່ງແລ້ວລອງໃໝ່",
     signingIn: "ກຳລັງເຂົ້າສູ່ລະບົບ...",
+    or: "ຫຼື",
+    google: "ເຂົ້າສູ່ລະບົບດ້ວຍ Google",
+    googleRedirecting: "ກຳລັງໄປ Google...",
+    googleHint: "ໃຊ້ Google ໄດ້ຫຼັງຈາກເຊື່ອມບັນຊີໃນໜ້າໂປຣໄຟລ໌ແລ້ວ",
+    errors: {
+      google_not_linked:
+        'Gmail ນີ້ຍັງບໍ່ໄດ້ເຊື່ອມກັບບັນຊີນັກສຶກສາ. ເຂົ້າສູ່ລະບົບດ້ວຍລະຫັດນັກສຶກສາກ່ອນ ແລ້ວກົດ "ເຊື່ອມ Google" ໃນໜ້າໂປຣໄຟລ໌',
+      google_failed: "ເຂົ້າສູ່ລະບົບດ້ວຍ Google ບໍ່ສຳເລັດ ກະລຸນາລອງໃໝ່",
+      google_disabled: "ຍັງບໍ່ໄດ້ເປີດການເຂົ້າສູ່ລະບົບດ້ວຍ Google ກະລຸນາຕິດຕໍ່ຄະນະກຳມະການ",
+      inactive: "ບັນຊີນີ້ຖືກປິດການໃຊ້ງານ ກະລຸນາຕິດຕໍ່ຄະນະກຳມະການ",
+    },
     getStarted: "ເລີ່ມຕົ້ນ",
   },
   history: {
@@ -175,6 +186,15 @@ export const lo = {
     account: "ບັນຊີ",
     darkMode: "ໂໝດມືດ",
     changePassword: "ປ່ຽນລະຫັດຜ່ານ",
+    google: "ບັນຊີ Google",
+    googleLink: "ເຊື່ອມ Google",
+    googleUnlink: "ຍົກເລີກການເຊື່ອມ",
+    googleNotLinked: "ຍັງບໍ່ໄດ້ເຊື່ອມ · ເຊື່ອມແລ້ວເຂົ້າສູ່ລະບົບດ້ວຍ Gmail ໄດ້",
+    googleLinked: "ເຊື່ອມ Google ສຳເລັດ ຕໍ່ໄປເຂົ້າສູ່ລະບົບດ້ວຍ Gmail ໄດ້ເລີຍ",
+    googleUnlinked: "ຍົກເລີກການເຊື່ອມ Google ແລ້ວ",
+    googleInUse: "Gmail ນີ້ຖືກເຊື່ອມກັບບັນຊີອື່ນແລ້ວ",
+    googleLinkFailed: "ເຊື່ອມ Google ບໍ່ສຳເລັດ ກະລຸນາລອງໃໝ່",
+    googleLinkDisabled: "ລະບົບຍັງບໍ່ເປີດໃຫ້ເຊື່ອມ Google ກະລຸນາແຈ້ງຄະນະກຳມະການ",
     version: "ເວີຊັນ",
   },
   committee: {

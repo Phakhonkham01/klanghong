@@ -35,6 +35,8 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname, search } = request.nextUrl;
+  // OAuth return URL: the route handler itself decides where to go.
+  if (pathname.startsWith("/auth/")) return response;
   const isPublic = PUBLIC_PATHS.includes(pathname);
 
   const go = (path: string, params?: Record<string, string>) => {

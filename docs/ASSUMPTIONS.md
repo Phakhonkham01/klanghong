@@ -32,3 +32,9 @@ Decisions taken where the brief was ambiguous. Items marked **(confirm)** are wa
 - `pnpm test:auth` (15 route-guard checks with real sessions, needs `pnpm dev`) passed on 2026-11-23.
 - Recommended in the Supabase dashboard: Authentication → turn off "Allow new users to sign up" (accounts are created by the committee only).
 - Pages still show demo data; wiring them to the database is the next phase.
+
+## Google sign-in
+- Students link Google themselves: sign in with student code once, then Profile → "ເຊື່ອມ Google" (Supabase `linkIdentity`). After that "ເຂົ້າສູ່ລະບົບດ້ວຍ Google" works. Committee does not need to collect Gmail addresses.
+- `/auth/callback` only admits Google accounts already linked to a profile; an unknown Gmail is signed out and the empty auth user Supabase created for it is deleted.
+- The Google button and the link row are hidden until Google is enabled in Supabase (checked via public `/auth/v1/settings`, cached 5 min).
+- Required Supabase setup (owner): Google provider with a Google Cloud OAuth client; redirect URLs for `/auth/callback`; "Allow manual linking" on.
