@@ -16,12 +16,13 @@ import type {
 
 /** All reads go through the signed-in user's client, so RLS decides what comes back. */
 
-export async function getSettings(): Promise<SettingsView> {
+/** `withQr`: also sign the QR image URL (one extra storage call), only needed where it is shown. */
+export async function getSettings({ withQr = false } = {}): Promise<SettingsView> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("settings").select("*").eq("id", 1).single();
   if (error || !data) throw new Error(`settings: ${error?.message ?? "missing"}`);
   let qrUrl: string | null = null;
-  if (data.qr_path) {
+  if (withQr && data.qr_path) {
     const { data: signed } = await supabase.storage
       .from("settings")
       .createSignedUrl(data.qr_path, 60 * 60);
@@ -72,14 +73,22 @@ function toPaymentView(p: PaymentRow, names: Map<string, string>): PaymentView {
 }
 
 /** Payments visible to the caller: own rows for students, everyone's for committee. */
-export async function getPayments(filter?: { studentId?: string }): Promise<PaymentView[]> {
+/**
+ * `withReviewerNames`: look up reviewers' names (one extra query). Committee only;
+ * students cannot read other profiles anyway.
+ */
+export async function getPayments(
+  filter: { studentId?: string; withReviewerNames?: boolean } = {},
+): Promise<PaymentView[]> {
   const supabase = await createSupabaseServerClient();
   let q = supabase.from("payments").select("*").order("created_at", { ascending: false });
-  if (filter?.studentId) q = q.eq("student_id", filter.studentId);
+  if (filter.studentId) q = q.eq("student_id", filter.studentId);
   const { data, error } = await q;
   if (error) throw new Error(`payments: ${error.message}`);
   const rows = data ?? [];
-  const names = await getProfileNames(rows.map((r) => r.reviewed_by).filter(Boolean) as string[]);
+  const names = filter.withReviewerNames
+    ? await getProfileNames(rows.map((r) => r.reviewed_by).filter(Boolean) as string[])
+    : new Map<string, string>();
   return rows.map((r) => toPaymentView(r, names));
 }
 

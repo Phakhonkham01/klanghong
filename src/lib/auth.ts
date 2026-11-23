@@ -1,12 +1,23 @@
 import "server-only";
+import { cache } from "react";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { PROFILE_HEADER, decodeProfileHeader } from "@/lib/profile-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ProfileRow, Role } from "@/types/database";
 
 export type Session = { userId: string; profile: ProfileRow };
 
-/** Current signed-in user and profile (verified with the Auth server), or null. */
-export async function getSession(): Promise<Session | null> {
+/**
+ * Current signed-in user and profile, or null.
+ * Fast path: the profile middleware verified for this request (no extra round trips).
+ * Fallback (e.g. a route the middleware matcher skips): ask Supabase directly.
+ */
+export const getSession = cache(async (): Promise<Session | null> => {
+  const fromMiddleware = decodeProfileHeader((await headers()).get(PROFILE_HEADER));
+  if (fromMiddleware) {
+    return fromMiddleware.is_active ? { userId: fromMiddleware.id, profile: fromMiddleware } : null;
+  }
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -15,7 +26,7 @@ export async function getSession(): Promise<Session | null> {
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
   if (!profile || !profile.is_active) return null;
   return { userId: user.id, profile };
-}
+});
 
 /**
  * For pages and server actions: require a signed-in, active, approved user (optionally a role).

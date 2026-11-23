@@ -3,3 +3,4 @@ node_modules
 .next
 src/types/database.ts
 docs/klanghong-claude-code-prompt.md
+.next-build

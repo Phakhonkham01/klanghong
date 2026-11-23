@@ -7,5 +7,5 @@ export const metadata = { title: lo.nav.settings };
 
 export default async function Page() {
   await requireSession("committee");
-  return <SettingsForm initial={await getSettings()} />;
+  return <SettingsForm initial={await getSettings({ withQr: true })} />;
 }

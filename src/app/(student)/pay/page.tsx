@@ -15,7 +15,7 @@ export default async function Page({
   const { userId } = await requireSession();
   const now = new Date();
   const [settings, payments] = await Promise.all([
-    getSettings(),
+    getSettings({ withQr: true }),
     getPayments({ studentId: userId }),
   ]);
   const entries = buildStudentWeeks(settings.startDate, payments, now);

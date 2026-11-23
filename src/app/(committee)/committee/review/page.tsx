@@ -12,7 +12,7 @@ export default async function Page() {
   const now = new Date();
   const [settings, payments, students] = await Promise.all([
     getSettings(),
-    getPayments(),
+    getPayments({ withReviewerNames: true }),
     getStudents(),
   ]);
   const byId = new Map(students.map((s) => [s.id, s]));

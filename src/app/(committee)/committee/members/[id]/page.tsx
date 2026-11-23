@@ -34,7 +34,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   }
 
   const now = new Date();
-  const [settings, payments] = await Promise.all([getSettings(), getPayments({ studentId: id })]);
+  const [settings, payments] = await Promise.all([
+    getSettings(),
+    getPayments({ studentId: id, withReviewerNames: true }),
+  ]);
   const entries = buildStudentWeeks(settings.startDate, payments, now);
   const outstanding = summarizeOutstanding(entries, settings.weeklyAmount);
   const paidTotal = payments
