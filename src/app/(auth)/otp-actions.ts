@@ -22,6 +22,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const t = lo.otp;
 
+/** signup: first sign-in (creates the account); reset: forgot password (existing account only). */
+export type OtpPurpose = "signup" | "reset";
+
 export type OtpRequestState =
   | { ok: true; phone: string; remaining: number; resendIn: number; devCode?: string }
   | { ok: false; error: string };
@@ -48,7 +51,10 @@ async function usedThisMonth(phone: string, now: Date): Promise<number> {
 }
 
 /** Step 1: send a one-time code by SMS (3 per number per month). */
-export async function requestOtpAction(rawPhone: string): Promise<OtpRequestState> {
+export async function requestOtpAction(
+  rawPhone: string,
+  purpose: OtpPurpose = "signup",
+): Promise<OtpRequestState> {
   const phone = normalizePhone(rawPhone);
   if (!phone) return { ok: false, error: t.invalidPhone };
 
@@ -58,11 +64,16 @@ export async function requestOtpAction(rawPhone: string): Promise<OtpRequestStat
   // Don't spend SMS on accounts that cannot sign in anyway.
   const { data: profile } = await admin
     .from("profiles")
-    .select("is_active, approval")
+    .select("is_active, approval, must_change_password, must_set_name")
     .eq("phone", phone)
     .maybeSingle();
   if (profile && !profile.is_active) return { ok: false, error: lo.login.inactive };
   if (profile?.approval === "rejected") return { ok: false, error: t.rejected };
+  if (purpose === "reset" && !profile) return { ok: false, error: t.notRegistered };
+  // Already has a password: sign in with it (or use "forgot password") instead of a new OTP.
+  if (purpose === "signup" && profile && !profile.must_change_password && !profile.must_set_name) {
+    return { ok: false, error: t.alreadyRegistered };
+  }
 
   const used = await usedThisMonth(phone, now);
   if (used >= OTP.monthlyLimit) {
@@ -150,7 +161,11 @@ function nextMonthIso(now: Date): string {
 export type OtpVerifyState = { ok: false; error: string } | null;
 
 /** Step 2: check the code, create the account on first use, and start a session. */
-export async function verifyOtpAction(rawPhone: string, rawCode: string): Promise<OtpVerifyState> {
+export async function verifyOtpAction(
+  rawPhone: string,
+  rawCode: string,
+  purpose: OtpPurpose = "signup",
+): Promise<OtpVerifyState> {
   const phone = normalizePhone(rawPhone);
   const code = String(rawCode ?? "").replace(/\D/g, "");
   if (!phone || code.length !== OTP.length) return { ok: false, error: t.invalidCode };
@@ -190,11 +205,12 @@ export async function verifyOtpAction(rawPhone: string, rawCode: string): Promis
   const email = phoneToEmail(phone);
   let { data: profile } = await admin
     .from("profiles")
-    .select("id, role, is_active, approval, must_set_name")
+    .select("id, role, is_active, approval, must_set_name, must_change_password")
     .eq("phone", phone)
     .maybeSingle();
 
   if (profile && !profile.is_active) return { ok: false, error: lo.login.inactive };
+  if (!profile && purpose === "reset") return { ok: false, error: t.notRegistered };
 
   if (!profile) {
     // First sign-in: self-registration, waits for committee approval.
@@ -220,9 +236,10 @@ export async function verifyOtpAction(rawPhone: string, rawCode: string): Promis
         role: "student",
         approval: "pending",
         must_set_name: true,
-        must_change_password: false,
+        // A password is chosen on /welcome together with the name.
+        must_change_password: true,
       })
-      .select("id, role, is_active, approval, must_set_name")
+      .select("id, role, is_active, approval, must_set_name, must_change_password")
       .single();
     if (error || !inserted) return { ok: false, error: lo.errors.generic };
     profile = inserted;
@@ -239,7 +256,13 @@ export async function verifyOtpAction(rawPhone: string, rawCode: string): Promis
   });
   if (sessErr) return { ok: false, error: lo.errors.generic };
 
+  if (purpose === "reset" && !profile.must_set_name) {
+    // Forgot password: the verified phone may now choose a new one.
+    await admin.from("profiles").update({ must_change_password: true }).eq("id", profile.id);
+    redirect("/change-password");
+  }
   if (profile.must_set_name) redirect("/welcome");
+  if (profile.must_change_password) redirect("/change-password");
   if (profile.approval !== "approved") redirect("/pending");
   redirect(homeFor(profile.role));
 }

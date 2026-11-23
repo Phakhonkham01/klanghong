@@ -58,7 +58,8 @@ async function createPhoneStudent(phone: string, name: string): Promise<true | s
     role: "student",
     approval: "approved",
     must_set_name: false,
-    must_change_password: false,
+    // They sign up once with an OTP, then choose a password.
+    must_change_password: true,
   });
   if (pe) {
     await admin.auth.admin.deleteUser(data.user.id);

@@ -9,7 +9,7 @@ const PUBLIC_PATHS = ["/login"];
  * - signed out → /login (remembering where they were going)
  * - inactive profile → signed out
  * - must_change_password → /change-password until done
- * - phone sign-ups: must_set_name → /welcome, not yet approved → /pending
+ * - phone sign-ups: must_set_name → /welcome (name + password), not yet approved → /pending
  * - students cannot open /committee/*
  */
 export async function middleware(request: NextRequest) {
@@ -66,12 +66,13 @@ export async function middleware(request: NextRequest) {
 
   const home = profile.role === "committee" ? "/committee" : "/dashboard";
 
-  if (profile.must_change_password) {
-    return pathname === "/change-password" ? response : go("/change-password");
-  }
-  // Phone sign-up: set a name first, then wait for committee approval.
+  // Phone sign-up: name + password on /welcome, then wait for approval.
   if (profile.must_set_name) {
     return pathname === "/welcome" ? response : go("/welcome");
+  }
+  // First password (committee-added phone accounts), forgot password, or committee temp password.
+  if (profile.must_change_password) {
+    return pathname === "/change-password" ? response : go("/change-password");
   }
   if (profile.approval !== "approved") {
     return pathname === "/pending" ? response : go("/pending");

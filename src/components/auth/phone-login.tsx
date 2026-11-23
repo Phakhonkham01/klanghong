@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { ArrowLeft, Smartphone } from "lucide-react";
-import { requestOtpAction, verifyOtpAction } from "@/app/(auth)/otp-actions";
+import { requestOtpAction, verifyOtpAction, type OtpPurpose } from "@/app/(auth)/otp-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { lo } from "@/lib/i18n/lo";
@@ -23,8 +23,8 @@ function ErrorText({ text }: { text: string | null }) {
   );
 }
 
-/** Two steps: phone number → 6-digit code. */
-export function PhoneLogin() {
+/** Two steps: phone number → 6-digit code. Used for sign-up and for "forgot password". */
+export function PhoneLogin({ purpose = "signup" }: { purpose?: OtpPurpose }) {
   const [phoneInput, setPhoneInput] = useState("");
   const [phone, setPhone] = useState<string | null>(null);
   const [code, setCode] = useState("");
@@ -43,7 +43,7 @@ export function PhoneLogin() {
   function send(value: string) {
     setError(null);
     startTransition(async () => {
-      const r = await requestOtpAction(value).catch(() => null);
+      const r = await requestOtpAction(value, purpose).catch(() => null);
       if (!r) return setError(lo.errors.generic);
       if (!r.ok) return setError(r.error);
       setPhone(r.phone);
@@ -59,7 +59,7 @@ export function PhoneLogin() {
     setError(null);
     startTransition(async () => {
       // On success the action redirects; it only returns on failure.
-      const r = await verifyOtpAction(phone, value).catch(() => null);
+      const r = await verifyOtpAction(phone, value, purpose).catch(() => null);
       if (r && !r.ok) {
         setError(r.error);
         setCode("");
@@ -100,7 +100,9 @@ export function PhoneLogin() {
         >
           {pending ? t.sending : t.send}
         </Button>
-        <p className="text-center text-xs text-muted-foreground">{t.phoneHint}</p>
+        <p className="text-center text-xs text-muted-foreground">
+          {purpose === "reset" ? t.resetHint : t.signupHint}
+        </p>
       </form>
     );
   }

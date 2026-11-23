@@ -6,7 +6,8 @@ import { lo } from "@/lib/i18n/lo";
 export const metadata = { title: lo.changePassword.title };
 
 export default async function Page() {
-  const { profile } = await requireSession();
+  // Also reachable while awaiting approval (forgot password).
+  const { profile } = await requireSession(undefined, { allowOnboarding: true });
   return (
     <div className="grid min-h-dvh place-items-center px-4 py-10">
       <div className="w-full max-w-sm">

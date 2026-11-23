@@ -21,7 +21,7 @@ export default async function Page() {
           <p className="money text-sm text-muted-foreground">{formatPhone(profile.phone)}</p>
           <p className="text-sm text-muted-foreground">{lo.welcome.subtitle}</p>
         </div>
-        <NameForm />
+        <NameForm phone={profile.phone ?? ""} />
       </div>
     </div>
   );

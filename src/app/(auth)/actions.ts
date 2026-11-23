@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { homeFor } from "@/lib/auth";
 import { lo } from "@/lib/i18n/lo";
+import { normalizePhone, phoneToEmail } from "@/lib/phone";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -54,13 +55,62 @@ export async function signInAction(_prev: FormState, form: FormData): Promise<Fo
   redirect(next && !(next.startsWith("/committee") && profile.role !== "committee") ? next : home);
 }
 
+function passwordError(problem: ReturnType<typeof checkNewPassword>): string | null {
+  if (problem === "too_short") return lo.changePassword.tooShort;
+  if (problem === "too_long") return lo.changePassword.tooLong;
+  if (problem === "mismatch") return lo.changePassword.mismatch;
+  return null;
+}
+
+/** Where a signed-in user goes next, given their onboarding state. */
+function nextStep(p: {
+  role: "student" | "committee";
+  approval: string;
+  must_set_name: boolean;
+  must_change_password: boolean;
+}): string {
+  if (p.must_set_name) return "/welcome";
+  if (p.must_change_password) return "/change-password";
+  if (p.approval !== "approved") return "/pending";
+  return homeFor(p.role);
+}
+
+/** Students: phone number + password (set after the first OTP sign-up). */
+export async function signInPhoneAction(_prev: FormState, form: FormData): Promise<FormState> {
+  const typed = String(form.get("phone") ?? "").slice(0, 20);
+  const password = String(form.get("password") ?? "");
+  if (!typed || !password) return { error: lo.login.required, code: typed };
+  const phone = normalizePhone(typed);
+  if (!phone) return { error: lo.otp.invalidPhone, code: typed };
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: phoneToEmail(phone),
+    password,
+  });
+  if (error || !data.user) {
+    return {
+      error: error?.status === 429 ? lo.login.tooMany : lo.otp.invalidCredentials,
+      code: typed,
+    };
+  }
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, is_active, approval, must_set_name, must_change_password")
+    .eq("id", data.user.id)
+    .single();
+  if (!profile || !profile.is_active) {
+    await supabase.auth.signOut();
+    return { error: lo.login.inactive, code: typed };
+  }
+  redirect(nextStep(profile));
+}
+
 export async function changePasswordAction(_prev: FormState, form: FormData): Promise<FormState> {
   const password = String(form.get("password") ?? "");
   const confirm = String(form.get("confirm") ?? "");
-  const problem = checkNewPassword(password, confirm);
-  if (problem === "too_short") return { error: lo.changePassword.tooShort };
-  if (problem === "too_long") return { error: lo.changePassword.tooLong };
-  if (problem === "mismatch") return { error: lo.changePassword.mismatch };
+  const problem = passwordError(checkNewPassword(password, confirm));
+  if (problem) return { error: problem };
 
   const supabase = await createSupabaseServerClient();
   const {
@@ -81,11 +131,11 @@ export async function changePasswordAction(_prev: FormState, form: FormData): Pr
     .from("profiles")
     .update({ must_change_password: false })
     .eq("id", user.id)
-    .select("role")
+    .select("role, approval, must_set_name, must_change_password")
     .single();
   if (upErr || !profile) return { error: lo.errors.generic };
 
-  redirect(homeFor(profile.role));
+  redirect(nextStep(profile));
 }
 
 export async function signOutAction(): Promise<void> {
@@ -94,12 +144,15 @@ export async function signOutAction(): Promise<void> {
   redirect("/login");
 }
 
-/** First sign-in by phone: the student sets their display name. */
-export async function setNameAction(_prev: FormState, form: FormData): Promise<FormState> {
+/** First sign-in by phone: the student sets their display name and a password. */
+export async function setupAccountAction(_prev: FormState, form: FormData): Promise<FormState> {
   const name = String(form.get("name") ?? "")
     .replace(/\s+/g, " ")
     .trim();
   if ([...name].length < 2 || [...name].length > 80) return { error: lo.welcome.invalid };
+  const password = String(form.get("password") ?? "");
+  const problem = passwordError(checkNewPassword(password, String(form.get("confirm") ?? "")));
+  if (problem) return { error: problem };
 
   const supabase = await createSupabaseServerClient();
   const {
@@ -107,15 +160,22 @@ export async function setNameAction(_prev: FormState, form: FormData): Promise<F
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Users have no UPDATE on profiles (RLS); change only the caller's own name.
+  const { error: pwErr } = await supabase.auth.updateUser({ password });
+  if (pwErr && pwErr.code !== "same_password") {
+    return {
+      error: pwErr.code === "weak_password" ? lo.changePassword.weak : lo.errors.generic,
+    };
+  }
+
+  // Users have no UPDATE on profiles (RLS); change only the caller's own row.
   const admin = createSupabaseAdminClient();
   const { data: profile, error } = await admin
     .from("profiles")
-    .update({ full_name: name, must_set_name: false })
+    .update({ full_name: name, must_set_name: false, must_change_password: false })
     .eq("id", user.id)
-    .select("role, approval")
+    .select("role, approval, must_set_name, must_change_password")
     .single();
   if (error || !profile) return { error: lo.errors.generic };
 
-  redirect(profile.approval === "approved" ? homeFor(profile.role) : "/pending");
+  redirect(nextStep(profile));
 }

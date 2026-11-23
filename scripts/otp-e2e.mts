@@ -134,27 +134,107 @@ async function main() {
   check("/welcome renders", welcome.status === 200);
   for (const [k, v] of findActionIds()) ids.set(k, v);
 
-  // --- name ---
+  // --- name + password ---
+  const PW1 = `Pw-${tag}-first1`;
+  const PW2 = `Pw-${tag}-second2`;
   const shortName = new FormData();
   shortName.append("name", "x");
-  const n1 = await callAction(ids, "setNameAction", sA, [{ error: null }, shortName], "/welcome");
+  shortName.append("password", PW1);
+  shortName.append("confirm", PW1);
+  const n1 = await callAction(
+    ids,
+    "setupAccountAction",
+    sA,
+    [{ error: null }, shortName],
+    "/welcome",
+  );
   check(
     "too-short name refused",
     typeof n1.result?.error === "string" && !!n1.result?.error,
     JSON.stringify(n1.result),
   );
+  const mismatch = new FormData();
+  mismatch.append("name", "ສົມພອນ ທົດສອບ");
+  mismatch.append("password", PW1);
+  mismatch.append("confirm", PW2);
+  const n0 = await callAction(
+    ids,
+    "setupAccountAction",
+    sA,
+    [{ error: null }, mismatch],
+    "/welcome",
+  );
+  check(
+    "mismatched passwords refused",
+    typeof n0.result?.error === "string" && !!n0.result?.error,
+    JSON.stringify(n0.result),
+  );
   const okName = new FormData();
   okName.append("name", "  ສົມພອນ   ທົດສອບ ");
-  const n2 = await callAction(ids, "setNameAction", sA, [{ error: null }, okName], "/welcome");
+  okName.append("password", PW1);
+  okName.append("confirm", PW1);
+  const n2 = await callAction(ids, "setupAccountAction", sA, [{ error: null }, okName], "/welcome");
   const { data: pa2 } = await admin
     .from("profiles")
-    .select("full_name, must_set_name")
+    .select("full_name, must_set_name, must_change_password")
     .eq("id", pa!.id)
     .single();
   check(
-    "name saved (trimmed) and sent to /pending",
-    n2.redirect === "/pending" && pa2?.full_name === "ສົມພອນ ທົດສອບ" && pa2?.must_set_name === false,
-    `${n2.redirect} ${pa2?.full_name}`,
+    "name + password saved, sent to /pending",
+    n2.redirect === "/pending" &&
+      pa2?.full_name === "ສົມພອນ ທົດສອບ" &&
+      pa2?.must_set_name === false &&
+      pa2?.must_change_password === false,
+    `${n2.redirect} ${JSON.stringify(pa2)}`,
+  );
+
+  // --- phone + password sign-in (no OTP) ---
+  for (const [k, v] of findActionIds()) ids.set(k, v);
+  const loginForm = (phone: string, password: string) => {
+    const f = new FormData();
+    f.append("phone", phone);
+    f.append("password", password);
+    return f;
+  };
+  const badPw = await callAction(
+    ids,
+    "signInPhoneAction",
+    "",
+    [{ error: null }, loginForm(`0${A}`, "wrong-password")],
+    "/login",
+  );
+  check(
+    "wrong password refused",
+    typeof badPw.result?.error === "string" && !!badPw.result?.error,
+    JSON.stringify(badPw.result),
+  );
+  const pwLogin = await callAction(
+    ids,
+    "signInPhoneAction",
+    "",
+    [{ error: null }, loginForm(`0${A.slice(0, 2)} ${A.slice(2, 6)} ${A.slice(6)}`, PW1)],
+    "/login",
+  );
+  check(
+    "phone + password signs in (pending → /pending)",
+    pwLogin.redirect === "/pending" && pwLogin.cookie.includes("auth-token"),
+    `${pwLogin.status} ${pwLogin.redirect}`,
+  );
+
+  // Registered numbers are told to use the password instead of spending an OTP.
+  const again = await callAction(ids, "requestOtpAction", "", [A, "signup"], "/login");
+  check(
+    "sign-up OTP refused for a number that has a password",
+    again.result?.ok === false && /ລະຫັດຜ່ານ/.test(String(again.result?.error)),
+    JSON.stringify(again.result),
+  );
+  const C = `20997${A.slice(5)}`;
+  PHONES.push(C);
+  const resetUnknown = await callAction(ids, "requestOtpAction", "", [C, "reset"], "/login");
+  check(
+    "reset OTP refused for an unregistered number",
+    resetUnknown.result?.ok === false && /ສະໝັກ/.test(String(resetUnknown.result?.error)),
+    JSON.stringify(resetUnknown.result),
   );
 
   const pend = await page("/dashboard", sA);
@@ -176,7 +256,7 @@ async function main() {
       `✗ precondition: expected 3 OTPs for ${A}, found ${used} — skipping limit tests to avoid sending SMS`,
     );
   } else {
-    const limited = await callAction(ids, "requestOtpAction", "", [A], "/login");
+    const limited = await callAction(ids, "requestOtpAction", "", [A, "reset"], "/login");
     check(
       "4th OTP in a month refused",
       limited.result?.ok === false && /3/.test(String(limited.result?.error)),
@@ -201,7 +281,7 @@ async function main() {
     );
     check("committee resets OTP quota", reset.result?.ok === true, JSON.stringify(reset.result));
     await plant(A, "555555", { ageSec: 5 }); // most recent request → cooldown applies
-    const cool = await callAction(ids, "requestOtpAction", "", [A], "/login");
+    const cool = await callAction(ids, "requestOtpAction", "", [A, "reset"], "/login");
     check(
       "after reset: limit lifted, 60 s cooldown still applies",
       cool.result?.ok === false && /ວິນາທີ/.test(String(cool.result?.error)),
@@ -211,6 +291,68 @@ async function main() {
 
   const dash = await page("/dashboard", sA);
   check("approved account opens dashboard", dash.status === 200, `${dash.status} ${dash.location}`);
+
+  const pwApproved = await callAction(
+    ids,
+    "signInPhoneAction",
+    "",
+    [{ error: null }, loginForm(A, PW1)],
+    "/login",
+  );
+  check(
+    "approved student signs in with password → /dashboard",
+    pwApproved.redirect === "/dashboard",
+    `${pwApproved.redirect}`,
+  );
+
+  // --- forgot password: OTP (reset) → /change-password → new password works, old one doesn't ---
+  await admin
+    .from("otp_requests")
+    .update({ consumed_at: new Date().toISOString() })
+    .eq("phone", A)
+    .is("consumed_at", null);
+  await plant(A, "121212");
+  const rv = await callAction(ids, "verifyOtpAction", "", [A, "121212", "reset"], "/login");
+  check(
+    "reset OTP signs in and goes to /change-password",
+    rv.redirect === "/change-password",
+    `${rv.status} ${rv.redirect}`,
+  );
+  const forced = await page("/dashboard", rv.cookie);
+  check("must set the new password before anything else", forced.location === "/change-password");
+  await page("/change-password", rv.cookie);
+  for (const [k, v] of findActionIds()) ids.set(k, v);
+  const cp = new FormData();
+  cp.append("password", PW2);
+  cp.append("confirm", PW2);
+  const changed = await callAction(
+    ids,
+    "changePasswordAction",
+    rv.cookie,
+    [{ error: null }, cp],
+    "/change-password",
+  );
+  check(
+    "new password saved → /dashboard",
+    changed.redirect === "/dashboard",
+    `${changed.redirect} ${JSON.stringify(changed.result)}`,
+  );
+  const oldPw = await callAction(
+    ids,
+    "signInPhoneAction",
+    "",
+    [{ error: null }, loginForm(A, PW1)],
+    "/login",
+  );
+  check("old password no longer works", !!oldPw.result?.error && !oldPw.redirect);
+  const newPw = await callAction(
+    ids,
+    "signInPhoneAction",
+    "",
+    [{ error: null }, loginForm(A, PW2)],
+    "/login",
+  );
+  check("new password works", newPw.redirect === "/dashboard");
 
   // --- expiry and brute force ---
   await plant(A, "666666", { expired: true });
