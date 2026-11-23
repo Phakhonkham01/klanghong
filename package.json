@@ -13,8 +13,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "seed:admin": "tsx --env-file=.env.local scripts/seed-admin.ts",
-    "db:types": "supabase gen types typescript --linked --schema public > src/types/database.ts",
-    "check": "pnpm typecheck && pnpm lint && pnpm test"
+    "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
+    "db:status": "tsx --env-file=.env.local scripts/migrate.ts --status",
+    "test:rls": "tsx --env-file=.env.local scripts/rls-test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -49,6 +51,7 @@
     "@vitejs/plugin-react": "^6.3.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.29",
+    "postgres": "3.4.7",
     "prettier": "^3.10.1",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4",
