@@ -1,19 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Noto_Sans_Lao } from "next/font/google";
+import { Noto_Sans_Lao_Looped } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { lo } from "@/lib/i18n/lo";
 import "./globals.css";
 
-const notoLao = Noto_Sans_Lao({
+/**
+ * Noto Sans Lao Looped (variable 100–900) for all text, Lao and Latin.
+ * Served from our own domain by next/font: no request to Google at runtime and allowed by the CSP.
+ */
+const notoLaoLooped = Noto_Sans_Lao_Looped({
   variable: "--font-lao",
   subsets: ["lao", "latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
   display: "swap",
 });
 
@@ -34,8 +31,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="lo" suppressHydrationWarning>
-      <body className={`${notoLao.variable} ${inter.variable}`}>
+    <html lang="lo" className={notoLaoLooped.variable} suppressHydrationWarning>
+      <body>
         <Providers>{children}</Providers>
       </body>
     </html>

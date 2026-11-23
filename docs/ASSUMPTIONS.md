@@ -46,3 +46,6 @@ Decisions taken where the brief was ambiguous. Items marked **(confirm)** are wa
 ## Performance (2026-11-23)
 - Pages were 1.2–2.0 s because each request made ~6 sequential Supabase round trips (~200 ms each from Laos). Now: middleware verifies the session once (`getClaims`) and forwards the profile to pages in the `x-klanghong-profile` request header (deleted from incoming requests first, so it cannot be forged); QR signing and reviewer-name lookups only run where shown; `loading.tsx` skeletons give instant feedback. Measured warm times: 0.5–0.8 s.
 - Further gains need owner action: switch the project to asymmetric JWT signing keys (then `getClaims` verifies locally, ~−200 ms) and/or host Supabase in Singapore (~2–4× lower latency per call).
+
+## Fonts
+- All text uses Noto Sans Lao Looped (variable 100–900, Lao + Latin) via `next/font/google`, self-hosted so the CSP (`font-src 'self'`) allows it and there is no runtime request to Google. The font variable sits on `<html>` because `font-sans` is applied there (it was on `<body>` before, which silently fell back to a serif system font).
