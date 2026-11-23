@@ -17,3 +17,9 @@ Decisions taken where the brief was ambiguous. Items marked **(confirm)** are wa
 - Committee area (overview, review queue, payment matrix + student detail, students, expenses, reports, settings, audit) runs on demo data from `src/lib/demo-committee.ts`. Approve/reject, cash payments, student add/import/deactivate, expense add/edit/delete and settings save only change local page state or show a toast until server actions exist.
 - Review queue shows a generated stand-in slip; real slips will come from short-lived signed URLs. Desktop shortcuts: A approve, R reject, ←/→ move.
 - Matrix cells use slate for "unpaid" (not the brand green) so they can't be confused with "paid". CSV exports add a UTF-8 BOM for Excel and neutralize formula injection.
+
+## Phase 2 — Database
+- Supabase project: for now the schema lives in the owner's existing project (ref `wlda…`), next to another app's storage buckets; no table or function names collide. Moving to a dedicated project later = run the three migrations there and `pnpm setup:env`.
+- Migrations were applied by pasting them into the SQL Editor (no `SUPABASE_DB_URL`), so `ops.migrations` is not populated; future migrations must be pasted the same way or applied with `pnpm db:migrate` once the DB URL is set.
+- `pnpm test:rls` (29 checks) passed on 2026-11-23 and left no test data behind.
+- The service_role / secret keys were shared in chat on 2026-11-23 and must be rotated in the dashboard; then re-run `pnpm setup:env`.
