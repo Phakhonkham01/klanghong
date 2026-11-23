@@ -6,7 +6,9 @@ import { nodeStyle, paymentStyle } from "@/components/student/status-style";
 import { requireSession } from "@/lib/auth";
 import { getPayments, getSettings, getStudent } from "@/lib/data/queries";
 import { formatDateLo, formatDateTimeLo, formatWeekRange } from "@/lib/format";
+import { studentLabel } from "@/lib/data/types";
 import { lo } from "@/lib/i18n/lo";
+import { formatPhone } from "@/lib/phone";
 import { formatKip } from "@/lib/money";
 import { buildStudentWeeks, summarizeOutstanding } from "@/lib/status";
 import { cn } from "@/lib/utils";
@@ -56,8 +58,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold">{student.name}</h1>
           <p className="money text-sm text-muted-foreground">
-            {student.code}
-            {student.phone ? ` · ${student.phone}` : ""}
+            {studentLabel(student)}
+            {student.code && student.phone ? ` · ${formatPhone(student.phone)}` : ""}
           </p>
         </div>
         <CashPaymentButton weeks={payable} studentId={student.id} studentName={student.name} />

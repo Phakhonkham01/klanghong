@@ -33,8 +33,10 @@ Decisions taken where the brief was ambiguous. Items marked **(confirm)** are wa
 - Recommended in the Supabase dashboard: Authentication → turn off "Allow new users to sign up" (accounts are created by the committee only).
 - Pages still show demo data; wiring them to the database is the next phase.
 
-## Google sign-in
-- Students link Google themselves: sign in with student code once, then Profile → "ເຊື່ອມ Google" (Supabase `linkIdentity`). After that "ເຂົ້າສູ່ລະບົບດ້ວຍ Google" works. Committee does not need to collect Gmail addresses.
-- `/auth/callback` only admits Google accounts already linked to a profile; an unknown Gmail is signed out and the empty auth user Supabase created for it is deleted.
-- The Google button and the link row are hidden until Google is enabled in Supabase (checked via public `/auth/v1/settings`, cached 5 min).
-- Required Supabase setup (owner): Google provider with a Google Cloud OAuth client; redirect URLs for `/auth/callback`; "Allow manual linking" on.
+## Phone OTP sign-in (replaces Google)
+- Students sign in with a Lao mobile number + 6-digit SMS code sent through `wenova-link` (`WENOVA_API_TOKEN` in `.env.local`). Committee members keep code + password. Google sign-in was removed.
+- Anyone may register by phone; a new number becomes a `pending` profile, sets its full name on first sign-in (`/welcome`), then waits on `/pending` until the committee approves it on the Students page. Committee can also add students by phone (approved immediately).
+- OTP limits: 3 SMS per number per calendar month (Asia/Vientiane), reset early by the committee ("ຣີເຊັດ OTP"); 60 s between sends; 5 wrong tries per code; code valid 5 min. Abuse guards: 5 SMS per IP per hour and `OTP_GLOBAL_DAILY_LIMIT` (default 100) per 24 h. A failed SMS send does not count.
+- Codes are stored only as HMAC hashes (`OTP_SECRET`, defaulting to the service role key) in `otp_requests`, which has RLS on and no user grants.
+- After a verified code the server creates the Supabase session via an admin magic-link token (no password involved); sessions refresh automatically, so OTP is rarely needed again.
+- Pending/rejected accounts cannot submit payments (DB trigger) and only see the waiting page.

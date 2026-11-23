@@ -9,10 +9,8 @@ import {
   Wallet,
 } from "lucide-react";
 import { DarkModeRow } from "@/components/student/dark-mode-row";
-import { GoogleLinkRow } from "@/components/student/google-link-row";
 import { signOutAction } from "@/app/(auth)/actions";
-import { requireSession } from "@/lib/auth";
-import { isGoogleEnabled } from "@/lib/auth-providers";
+import { profileLabel, requireSession } from "@/lib/auth";
 import { getPayments, getSettings } from "@/lib/data/queries";
 import { lo } from "@/lib/i18n/lo";
 import { formatKip } from "@/lib/money";
@@ -46,14 +44,8 @@ function StatCard({
 const rowClass =
   "flex w-full items-center gap-3 px-4 py-3.5 text-left font-bold transition-colors hover:bg-muted/60";
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<{ google?: string }>;
-}) {
-  const { google } = await searchParams;
+export default async function Page() {
   const { profile, userId } = await requireSession();
-  const googleEnabled = await isGoogleEnabled();
   const now = new Date();
   const [settings, payments] = await Promise.all([
     getSettings(),
@@ -77,7 +69,7 @@ export default async function Page({
         <div>
           <h1 className="text-2xl font-bold">{profile.full_name}</h1>
           <p className="money text-sm font-semibold text-muted-foreground">
-            {profile.student_code}
+            {profileLabel(profile)}
           </p>
         </div>
         <span className="rounded-full bg-accent px-3 py-0.5 text-xs font-bold text-accent-foreground">
@@ -146,7 +138,6 @@ export default async function Page({
       <section>
         <h2 className="mb-3 text-lg font-bold">{lo.profile.account}</h2>
         <div className="divide-y-2 overflow-hidden rounded-2xl border-2">
-          {googleEnabled ? <GoogleLinkRow className={rowClass} status={google} /> : null}
           <DarkModeRow className={rowClass} />
           <Link href="/change-password" className={rowClass}>
             <KeyRound className="size-5 text-sky" strokeWidth={2.6} aria-hidden />

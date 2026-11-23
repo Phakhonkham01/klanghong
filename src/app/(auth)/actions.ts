@@ -93,3 +93,29 @@ export async function signOutAction(): Promise<void> {
   await supabase.auth.signOut();
   redirect("/login");
 }
+
+/** First sign-in by phone: the student sets their display name. */
+export async function setNameAction(_prev: FormState, form: FormData): Promise<FormState> {
+  const name = String(form.get("name") ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if ([...name].length < 2 || [...name].length > 80) return { error: lo.welcome.invalid };
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Users have no UPDATE on profiles (RLS); change only the caller's own name.
+  const admin = createSupabaseAdminClient();
+  const { data: profile, error } = await admin
+    .from("profiles")
+    .update({ full_name: name, must_set_name: false })
+    .eq("id", user.id)
+    .select("role, approval")
+    .single();
+  if (error || !profile) return { error: lo.errors.generic };
+
+  redirect(profile.approval === "approved" ? homeFor(profile.role) : "/pending");
+}

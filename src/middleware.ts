@@ -9,6 +9,7 @@ const PUBLIC_PATHS = ["/login"];
  * - signed out → /login (remembering where they were going)
  * - inactive profile → signed out
  * - must_change_password → /change-password until done
+ * - phone sign-ups: must_set_name → /welcome, not yet approved → /pending
  * - students cannot open /committee/*
  */
 export async function middleware(request: NextRequest) {
@@ -35,8 +36,6 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname, search } = request.nextUrl;
-  // OAuth return URL: the route handler itself decides where to go.
-  if (pathname.startsWith("/auth/")) return response;
   const isPublic = PUBLIC_PATHS.includes(pathname);
 
   const go = (path: string, params?: Record<string, string>) => {
@@ -56,7 +55,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, is_active, must_change_password")
+    .select("role, is_active, must_change_password, must_set_name, approval")
     .eq("id", user.id)
     .single();
 
@@ -70,6 +69,14 @@ export async function middleware(request: NextRequest) {
   if (profile.must_change_password) {
     return pathname === "/change-password" ? response : go("/change-password");
   }
+  // Phone sign-up: set a name first, then wait for committee approval.
+  if (profile.must_set_name) {
+    return pathname === "/welcome" ? response : go("/welcome");
+  }
+  if (profile.approval !== "approved") {
+    return pathname === "/pending" ? response : go("/pending");
+  }
+  if (pathname === "/welcome" || pathname === "/pending") return go(home);
   if (isPublic || pathname === "/") return go(home);
   if (pathname.startsWith("/committee") && profile.role !== "committee") return go("/dashboard");
 

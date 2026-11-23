@@ -17,12 +17,29 @@ export interface PaymentView extends PaymentLike {
 
 export interface StudentView {
   id: string;
-  code: string;
+  /** Student code; committee accounts sign in with it. Phone sign-ups may have none. */
+  code: string | null;
   name: string;
   phone: string | null;
   isActive: boolean;
   role: "student" | "committee";
   mustChangePassword: boolean;
+  approval: "pending" | "approved" | "rejected";
+  mustSetName: boolean;
+  /** OTP codes sent this month (committee view only). */
+  otpUsed?: number;
+}
+
+/** Approved, active profile: counts as a paying class member. */
+export function isMember(s: Pick<StudentView, "isActive" | "approval">): boolean {
+  return s.isActive && s.approval === "approved";
+}
+
+/** Code if set, else formatted phone. */
+export function studentLabel(s: Pick<StudentView, "code" | "phone">): string {
+  if (s.code) return s.code;
+  const d = s.phone ?? "";
+  return d.length === 10 ? `0${d.slice(0, 2)} ${d.slice(2, 6)} ${d.slice(6)}` : d;
 }
 
 export interface ExpenseView {

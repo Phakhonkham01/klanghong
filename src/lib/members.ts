@@ -1,4 +1,4 @@
-import type { PaymentView, StudentView } from "@/lib/data/types";
+import { isMember, studentLabel, type PaymentView, type StudentView } from "@/lib/data/types";
 import { buildStudentWeeks, summarizeOutstanding, type WeekStatus } from "@/lib/status";
 import { listWeeks, type IsoDate } from "@/lib/week";
 
@@ -26,20 +26,18 @@ export function buildMemberRows(
   for (const p of payments)
     byStudent.set(p.student_id, [...(byStudent.get(p.student_id) ?? []), p]);
 
-  const rows = students
-    .filter((s) => s.isActive)
-    .map((s): MemberRow => {
-      const own = byStudent.get(s.id) ?? [];
-      const entries = buildStudentWeeks(startDate, own, now);
-      return {
-        id: s.id,
-        code: s.code,
-        name: s.name,
-        statuses: entries.map((e) => e.status),
-        totalPaid: own.filter((p) => p.status === "approved").reduce((sum, p) => sum + p.amount, 0),
-        overdueCount: summarizeOutstanding(entries, weeklyAmount).count,
-        currentStatus: entries.at(-1)?.status ?? null,
-      };
-    });
+  const rows = students.filter(isMember).map((s): MemberRow => {
+    const own = byStudent.get(s.id) ?? [];
+    const entries = buildStudentWeeks(startDate, own, now);
+    return {
+      id: s.id,
+      code: studentLabel(s),
+      name: s.name,
+      statuses: entries.map((e) => e.status),
+      totalPaid: own.filter((p) => p.status === "approved").reduce((sum, p) => sum + p.amount, 0),
+      overdueCount: summarizeOutstanding(entries, weeklyAmount).count,
+      currentStatus: entries.at(-1)?.status ?? null,
+    };
+  });
   return { weeks, rows };
 }

@@ -1,7 +1,5 @@
 import { PiggyBank } from "lucide-react";
-import { GoogleButton } from "@/components/auth/google-button";
-import { LoginForm } from "@/components/auth/login-form";
-import { isGoogleEnabled } from "@/lib/auth-providers";
+import { LoginTabs } from "@/components/auth/login-tabs";
 import { lo } from "@/lib/i18n/lo";
 import { safeNextPath } from "@/lib/validators";
 
@@ -13,7 +11,6 @@ export default async function Page({
   searchParams: Promise<{ next?: string; error?: string }>;
 }) {
   const params = await searchParams;
-  const google = await isGoogleEnabled();
   const next = safeNextPath(params.next) ?? undefined;
   const errors = lo.login.errors as Record<string, string>;
   const error = params.error && Object.hasOwn(errors, params.error) ? errors[params.error] : null;
@@ -43,20 +40,10 @@ export default async function Page({
               {error}
             </p>
           ) : null}
-          <LoginForm next={next} />
-          {google ? (
-            <>
-              <div className="my-5 flex items-center gap-3 text-xs font-bold text-muted-foreground">
-                <span className="h-0.5 flex-1 rounded bg-border" />
-                {lo.login.or}
-                <span className="h-0.5 flex-1 rounded bg-border" />
-              </div>
-              <GoogleButton next={next} />
-              <p className="mt-2 text-center text-xs text-muted-foreground">
-                {lo.login.googleHint}
-              </p>
-            </>
-          ) : null}
+          <LoginTabs
+            next={next}
+            initial={next?.startsWith("/committee") ? "committee" : "student"}
+          />
         </div>
       </section>
     </div>

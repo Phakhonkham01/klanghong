@@ -2,6 +2,7 @@ import { ReportsView, type ReportRow } from "@/components/committee/reports-view
 import { requireSession } from "@/lib/auth";
 import { getPayments, getSettings, getStudents } from "@/lib/data/queries";
 import { formatMonthLo, formatWeekRange } from "@/lib/format";
+import { isMember } from "@/lib/data/types";
 import { lo } from "@/lib/i18n/lo";
 import { listWeeks } from "@/lib/week";
 
@@ -16,7 +17,7 @@ export default async function Page() {
     getStudents(),
   ]);
   // Expected per week uses the current roster and fee (history is not versioned).
-  const active = students.filter((s) => s.isActive).length;
+  const active = students.filter(isMember).length;
   const expected = active * settings.weeklyAmount;
 
   const weekly: ReportRow[] = listWeeks(settings.startDate, now).map((w) => {

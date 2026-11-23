@@ -1,6 +1,7 @@
 import { ReviewQueue, type ReviewItem } from "@/components/committee/review-queue";
 import { requireSession } from "@/lib/auth";
 import { getPayments, getSettings, getStudents } from "@/lib/data/queries";
+import { studentLabel } from "@/lib/data/types";
 import { lo } from "@/lib/i18n/lo";
 import { buildStudentWeeks } from "@/lib/status";
 
@@ -34,7 +35,10 @@ export default async function Page() {
     .map((p) => ({
       ...p,
       studentName: byId.get(p.student_id)?.name ?? "",
-      studentCode: byId.get(p.student_id)?.code ?? "",
+      studentCode: (() => {
+        const st = byId.get(p.student_id);
+        return st ? studentLabel(st) : "";
+      })(),
       recent: recentByStudent.get(p.student_id) ?? [],
     }));
 

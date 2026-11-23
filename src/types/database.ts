@@ -13,15 +13,36 @@ type Table<Row, Insert, Update> = {
   Relationships: [];
 };
 
+export type Approval = "pending" | "approved" | "rejected";
+
 export type ProfileRow = {
   id: string;
-  student_code: string;
+  student_code: string | null;
   full_name: string;
   role: Role;
   is_active: boolean;
   must_change_password: boolean;
   phone: string | null;
+  approval: Approval;
+  must_set_name: boolean;
   created_at: string;
+};
+
+export type OtpRequestRow = {
+  id: number;
+  phone: string;
+  code_hash: string;
+  ip: string | null;
+  created_at: string;
+  expires_at: string;
+  attempts: number;
+  consumed_at: string | null;
+};
+
+export type OtpQuotaResetRow = {
+  phone: string;
+  reset_at: string;
+  reset_by: string | null;
 };
 
 export type SettingsRow = {
@@ -81,8 +102,8 @@ export type Database = {
     Tables: {
       profiles: Table<
         ProfileRow,
-        Pick<ProfileRow, "id" | "student_code" | "full_name"> & Partial<ProfileRow>,
-        Partial<Pick<ProfileRow, "full_name" | "phone" | "is_active" | "must_change_password" | "role">>
+        Pick<ProfileRow, "id" | "full_name"> & Partial<ProfileRow>,
+        Partial<ProfileRow>
       >;
       settings: Table<SettingsRow, Partial<SettingsRow> & Pick<SettingsRow, "start_date">, Partial<SettingsRow>>;
       payments: Table<
@@ -96,6 +117,12 @@ export type Database = {
         Partial<ExpenseRow>
       >;
       audit_log: Table<AuditRow, Partial<AuditRow>, Partial<AuditRow>>;
+      otp_requests: Table<
+        OtpRequestRow,
+        Pick<OtpRequestRow, "phone" | "code_hash" | "expires_at"> & Partial<OtpRequestRow>,
+        Partial<OtpRequestRow>
+      >;
+      otp_quota_resets: Table<OtpQuotaResetRow, Pick<OtpQuotaResetRow, "phone"> & Partial<OtpQuotaResetRow>, Partial<OtpQuotaResetRow>>;
     };
     Views: Record<string, never>;
     Functions: {

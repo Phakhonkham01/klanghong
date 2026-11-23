@@ -1,5 +1,7 @@
 import "server-only";
 import { formatWeekRange } from "@/lib/format";
+import { quotaWindowStart, vientianeMonthStart } from "@/lib/otp";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AuditRow, PaymentRow, ProfileRow } from "@/types/database";
 import type {
@@ -99,15 +101,49 @@ function toStudentView(p: ProfileRow): StudentView {
     isActive: p.is_active,
     role: p.role,
     mustChangePassword: p.must_change_password,
+    approval: p.approval,
+    mustSetName: p.must_set_name,
   };
 }
 
 /** Committee only (RLS returns just the caller's own row for students). */
 export async function getStudents(): Promise<StudentView[]> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("profiles").select("*").order("student_code");
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .order("created_at", { ascending: true });
   if (error) throw new Error(`profiles: ${error.message}`);
   return (data ?? []).map(toStudentView);
+}
+
+/**
+ * OTP codes sent this month per phone. The OTP tables have no user grants,
+ * so this uses the service role; call it only after requireSession("committee").
+ */
+export async function getOtpUsage(
+  phones: string[],
+  now: Date = new Date(),
+): Promise<Map<string, number>> {
+  const unique = [...new Set(phones.filter(Boolean))];
+  if (!unique.length) return new Map();
+  const admin = createSupabaseAdminClient();
+  const month = vientianeMonthStart(now);
+  const [{ data: reqs }, { data: resets }] = await Promise.all([
+    admin
+      .from("otp_requests")
+      .select("phone, created_at")
+      .in("phone", unique)
+      .gte("created_at", month.toISOString()),
+    admin.from("otp_quota_resets").select("phone, reset_at").in("phone", unique),
+  ]);
+  const resetAt = new Map((resets ?? []).map((r) => [r.phone, new Date(r.reset_at)]));
+  const used = new Map<string, number>();
+  for (const r of reqs ?? []) {
+    const since = quotaWindowStart(now, resetAt.get(r.phone) ?? null);
+    if (new Date(r.created_at) >= since) used.set(r.phone, (used.get(r.phone) ?? 0) + 1);
+  }
+  return used;
 }
 
 export async function getStudent(id: string): Promise<StudentView | null> {

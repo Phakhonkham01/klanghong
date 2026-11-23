@@ -12,6 +12,7 @@ import {
   getStudents,
 } from "@/lib/data/queries";
 import { formatDateTimeLo, formatWeekRange } from "@/lib/format";
+import { isMember } from "@/lib/data/types";
 import { lo } from "@/lib/i18n/lo";
 import { formatKip } from "@/lib/money";
 import { buildStudentWeeks, summarizeOutstanding } from "@/lib/status";
@@ -31,7 +32,7 @@ export default async function Page() {
     getAudit(6),
   ]);
   const week = currentWeekStart(now);
-  const active = students.filter((s) => s.isActive);
+  const active = students.filter(isMember);
 
   const collected = fund.totalApproved;
   const spent = fund.totalExpenses;

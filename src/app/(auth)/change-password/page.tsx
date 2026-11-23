@@ -1,6 +1,6 @@
 import { KeyRound } from "lucide-react";
 import { ChangePasswordForm } from "@/components/auth/change-password-form";
-import { requireSession } from "@/lib/auth";
+import { profileLabel, requireSession } from "@/lib/auth";
 import { lo } from "@/lib/i18n/lo";
 
 export const metadata = { title: lo.changePassword.title };
@@ -16,7 +16,7 @@ export default async function Page() {
           </span>
           <h1 className="text-2xl font-bold">{lo.changePassword.title}</h1>
           <p className="text-sm text-muted-foreground">
-            {profile.full_name} · <span className="money">{profile.student_code}</span>
+            {profile.full_name} · <span className="money">{profileLabel(profile)}</span>
           </p>
           <p className="text-sm text-muted-foreground">{lo.changePassword.subtitle}</p>
         </div>
