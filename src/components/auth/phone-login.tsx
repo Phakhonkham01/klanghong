@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { ArrowLeft, Smartphone } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { requestOtpAction, verifyOtpAction, type OtpPurpose } from "@/app/(auth)/otp-actions";
+import { PhoneInput } from "@/components/phone-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { lo } from "@/lib/i18n/lo";
@@ -77,26 +78,14 @@ export function PhoneLogin({ purpose = "signup" }: { purpose?: OtpPurpose }) {
           send(phoneInput);
         }}
       >
-        <div className="relative">
-          <Smartphone className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={phoneInput}
-            onChange={(e) => setPhoneInput(e.target.value)}
-            placeholder={t.phonePlaceholder}
-            aria-label={t.phone}
-            inputMode="tel"
-            autoComplete="tel"
-            maxLength={20}
-            className={`${field} pl-12 money`}
-          />
-        </div>
+        <PhoneInput defaultValue={phoneInput} onValueChange={setPhoneInput} autoFocus />
         <ErrorText text={error} />
         <Button
           type="submit"
           variant="chunky"
           size="xl"
           className="w-full"
-          disabled={pending || !phoneInput.trim()}
+          disabled={pending || phoneInput.length !== 11}
         >
           {pending ? t.sending : t.send}
         </Button>

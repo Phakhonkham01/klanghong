@@ -23,6 +23,7 @@ import {
   setActiveAction,
   type CreatedAccount,
 } from "@/app/actions/students";
+import { PhoneInput } from "@/components/phone-input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -319,14 +320,11 @@ export function StudentsManager({ initial }: { initial: StudentView[] }) {
         <DialogContent className="gap-3 rounded-3xl p-5 sm:max-w-md">
           <DialogTitle className="text-lg font-bold">{t.add}</DialogTitle>
           <DialogDescription className="sr-only">{t.add}</DialogDescription>
-          <Input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder={lo.otp.phonePlaceholder}
-            aria-label={lo.otp.phone}
-            inputMode="tel"
-            maxLength={20}
-            className={cn(field, "money")}
+          <PhoneInput
+            key={adding ? "open" : "closed"}
+            defaultValue={phone}
+            onValueChange={setPhone}
+            className="h-11 bg-transparent text-base md:text-sm"
           />
           <Input
             value={name}

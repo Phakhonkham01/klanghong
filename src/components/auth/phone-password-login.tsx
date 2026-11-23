@@ -1,8 +1,9 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Eye, EyeOff, Smartphone } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { signInPhoneAction, type FormState } from "@/app/(auth)/actions";
+import { PhoneInput } from "@/components/phone-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { lo } from "@/lib/i18n/lo";
@@ -17,20 +18,12 @@ export function PhonePasswordLogin({ onForgot }: { onForgot: () => void }) {
   });
   return (
     <form action={action} className="space-y-3" noValidate>
-      <div className="relative">
-        <Smartphone className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          name="phone"
-          key={state.code ?? ""}
-          defaultValue={state.code}
-          placeholder={lo.otp.phonePlaceholder}
-          aria-label={lo.otp.phone}
-          inputMode="tel"
-          autoComplete="username"
-          maxLength={20}
-          className={`${field} pl-12 money`}
-        />
-      </div>
+      <PhoneInput
+        key={state.code ?? ""}
+        name="phone"
+        defaultValue={state.code}
+        autoComplete="username"
+      />
       <div className="relative">
         <Input
           name="password"

@@ -8,7 +8,13 @@ import {
   vientianeMonthStart,
   vientianeNextMonthStart,
 } from "@/lib/otp";
-import { formatPhone, normalizePhone, phoneToEmail } from "@/lib/phone";
+import {
+  formatLocalDigits,
+  formatPhone,
+  localPhoneDigits,
+  normalizePhone,
+  phoneToEmail,
+} from "@/lib/phone";
 
 beforeAll(() => {
   process.env.OTP_SECRET = "test-secret";
@@ -74,5 +80,25 @@ describe("monthly quota window (Asia/Vientiane)", () => {
       vientianeMonthStart(now),
     );
     expect(OTP.monthlyLimit).toBe(3);
+  });
+});
+
+describe("localPhoneDigits (020 prefix input)", () => {
+  it("keeps typed digits, including a leading 2", () => {
+    expect(localPhoneDigits("5555")).toBe("5555");
+    expect(localPhoneDigits("2345 6789")).toBe("23456789");
+  });
+
+  it("reduces pasted full numbers to the 8 local digits", () => {
+    expect(localPhoneDigits("020 5555 1234")).toBe("55551234");
+    expect(localPhoneDigits("+856 20 5555 1234")).toBe("55551234");
+    expect(localPhoneDigits("2055551234")).toBe("55551234");
+    expect(localPhoneDigits("02022223333")).toBe("22223333");
+  });
+
+  it("round-trips with normalizePhone and formats for display", () => {
+    expect(normalizePhone(`020${localPhoneDigits("5555 1234")}`)).toBe("2055551234");
+    expect(formatLocalDigits("55551234")).toBe("5555 1234");
+    expect(formatLocalDigits("555")).toBe("555");
   });
 });
