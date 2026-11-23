@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatKip, parseKip } from "@/lib/money";
+import { formatKip, formatKipCompact, parseKip } from "@/lib/money";
 
 describe("formatKip", () => {
   it("formats with thousands separators and the kip sign", () => {
@@ -18,5 +18,14 @@ describe("parseKip", () => {
     expect(parseKip("10.5")).toBeNull();
     expect(parseKip("abc")).toBeNull();
     expect(parseKip("")).toBeNull();
+  });
+});
+
+describe("formatKipCompact", () => {
+  it("shortens thousands and millions", () => {
+    expect(formatKipCompact(950)).toBe("950");
+    expect(formatKipCompact(10_000)).toBe("10K");
+    expect(formatKipCompact(12_500)).toBe("12.5K");
+    expect(formatKipCompact(1_250_000)).toBe("1.25M");
   });
 });

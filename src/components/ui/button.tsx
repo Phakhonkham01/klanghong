@@ -17,6 +17,14 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
+        /* Chunky 3D variants for the playful student UI. */
+        chunky:
+          "press-3d rounded-2xl bg-primary font-bold text-primary-foreground [--press-shade:var(--brand-shade)] hover:brightness-105 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:[--press-shade:var(--tile-shade)]",
+        "chunky-sky":
+          "press-3d rounded-2xl bg-sky font-bold text-white [--press-shade:var(--sky-shade)] hover:brightness-105",
+        "chunky-danger":
+          "press-3d rounded-2xl bg-destructive font-bold text-white [--press-shade:color-mix(in_oklch,var(--destructive),black_25%)] hover:brightness-105",
+        tile: "press-3d rounded-2xl border-2 border-tile-shade bg-tile font-semibold text-foreground [--press-depth:3px] hover:bg-muted aria-pressed:border-primary aria-pressed:bg-accent aria-pressed:text-accent-foreground aria-pressed:[--press-shade:var(--brand)]",
       },
       size: {
         default:
@@ -24,6 +32,7 @@ const buttonVariants = cva(
         xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+        xl: "h-13 gap-2 px-6 text-base",
         icon: "size-8",
         "icon-xs":
           "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",

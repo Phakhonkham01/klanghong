@@ -1,14 +1,3 @@
-import { Brand } from "@/components/layout/brand";
-
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="grid min-h-dvh place-items-center bg-gradient-to-b from-accent to-background px-4 py-10">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex justify-center">
-          <Brand href="/login" />
-        </div>
-        {children}
-      </div>
-    </div>
-  );
+  return <div className="min-h-dvh">{children}</div>;
 }

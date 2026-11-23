@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildStudentWeeks,
+  computeStreak,
   defaultPayWeek,
   deriveWeekStatus,
   summarizeOutstanding,
@@ -134,5 +135,29 @@ describe("summarizeOutstanding / defaultPayWeek", () => {
     const w = buildStudentWeeks("2026-11-23", [], NOW);
     expect(defaultPayWeek(w)).toBe("2026-11-23");
     expect(summarizeOutstanding(w, 10_000).count).toBe(0);
+  });
+});
+
+describe("computeStreak", () => {
+  it("counts paid weeks back from the latest, skipping an open current week", () => {
+    const w = buildStudentWeeks(
+      "2026-11-02",
+      [pay("2026-11-02", "approved"), pay("2026-11-09", "approved"), pay("2026-11-16", "approved")],
+      NOW,
+    );
+    expect(computeStreak(w)).toBe(3);
+  });
+
+  it("includes the current week once paid and stops at a gap", () => {
+    const w = buildStudentWeeks(
+      "2026-11-02",
+      [pay("2026-11-02", "approved"), pay("2026-11-16", "approved"), pay("2026-11-23", "approved")],
+      NOW,
+    );
+    expect(computeStreak(w)).toBe(2);
+  });
+
+  it("is zero when the last past week is not paid", () => {
+    expect(computeStreak(buildStudentWeeks("2026-11-16", [], NOW))).toBe(0);
   });
 });

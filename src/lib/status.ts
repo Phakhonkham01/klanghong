@@ -107,3 +107,19 @@ export function summarizeOutstanding(
 export function defaultPayWeek(entries: WeekEntry[]): IsoDate | null {
   return entries.find((e) => e.isPayable)?.weekStart ?? null;
 }
+
+/**
+ * Consecutive paid weeks counting back from the latest week. The current week
+ * only extends the streak once it is paid; while it is still open it neither
+ * adds to nor breaks the streak.
+ */
+export function computeStreak(entries: WeekEntry[]): number {
+  let streak = 0;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i]!;
+    if (e.status === "paid") streak++;
+    else if (e.isCurrent) continue;
+    else break;
+  }
+  return streak;
+}

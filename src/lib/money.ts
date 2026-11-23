@@ -13,3 +13,12 @@ export function parseKip(input: string): number | null {
   const n = Number(digits);
   return Number.isSafeInteger(n) ? n : null;
 }
+
+/** Compact Kip for tight spaces: `950`, `12.5K`, `1.25M` (no currency sign). */
+export function formatKipCompact(amount: number): string {
+  const abs = Math.abs(amount);
+  const trim = (n: number) => String(Number(n.toFixed(2)));
+  if (abs >= 1_000_000) return `${trim(amount / 1_000_000)}M`;
+  if (abs >= 1_000) return `${trim(amount / 1_000)}K`;
+  return String(Math.round(amount));
+}
