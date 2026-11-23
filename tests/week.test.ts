@@ -12,7 +12,7 @@ import {
   weekRange,
   weekStartOf,
 } from "@/lib/week";
-import { formatWeekRange } from "@/lib/format";
+import { formatDateTimeLo, formatMonthLo, formatWeekRange } from "@/lib/format";
 
 /** Instant for a Vientiane wall-clock time (UTC+7, no DST). */
 const vte = (local: string) => new Date(`${local}+07:00`);
@@ -155,5 +155,16 @@ describe("formatWeekRange", () => {
 
   it("formats a week across months", () => {
     expect(formatWeekRange("2026-11-30")).toBe("ຈັນ 30 ພະຈິກ – ສຸກ 4 ທັນວາ");
+  });
+});
+
+describe("formatDateTimeLo / formatMonthLo", () => {
+  it("shows instants in Vientiane time, crossing midnight from UTC", () => {
+    expect(formatDateTimeLo("2026-11-23T02:15:00Z")).toBe("23 ພະຈິກ 2026 · 09:15");
+    expect(formatDateTimeLo("2026-11-29T18:30:00Z")).toBe("30 ພະຈິກ 2026 · 01:30");
+  });
+
+  it("formats a month label", () => {
+    expect(formatMonthLo("2026-12-07")).toBe("ທັນວາ 2026");
   });
 });

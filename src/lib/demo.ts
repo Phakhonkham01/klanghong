@@ -18,14 +18,33 @@ export const demoStudent = { name: "ສົມພອນ", code: "IT2026001" };
 
 export const demoFundTotal = 1_250_000;
 
+export interface DemoPayment extends PaymentLike {
+  id: string;
+  source: "transfer" | "cash";
+  reviewed_at: string | null;
+  reviewer: string | null;
+  reference: string | null;
+  note: string | null;
+}
+
 /** Payments relative to "now": mostly paid, one rejected, then overdue + current open. */
-export function demoPayments(now: Date = new Date()): PaymentLike[] {
+export function demoPayments(now: Date = new Date()): DemoPayment[] {
   const weeks = listWeeks(demoSettings.startDate, now);
   const past = weeks.slice(0, -1);
-  return past.flatMap((week_start, i): PaymentLike[] => {
-    const created_at = `${week_start}T09:00:00Z`;
-    const base = { week_start, amount: demoSettings.weeklyAmount, created_at };
-    if (i < past.length - 2) return [{ ...base, status: "approved" }];
+  return past.flatMap((week_start, i): DemoPayment[] => {
+    const base = {
+      id: `demo-${week_start}`,
+      week_start,
+      amount: demoSettings.weeklyAmount,
+      created_at: `${week_start}T02:15:00Z`,
+      reviewed_at: `${week_start}T11:40:00Z`,
+      reviewer: "ນາງ ມະນີວອນ",
+      reference: i === 0 ? null : `FT${week_start.replace(/-/g, "")}0${i}`,
+      note: null,
+      source: i === 0 ? ("cash" as const) : ("transfer" as const),
+    };
+    if (i < past.length - 2)
+      return [{ ...base, status: "approved", note: i === 0 ? "ຮັບເງິນສົດ" : null }];
     if (i === past.length - 2)
       return [{ ...base, status: "rejected", reject_reason: "ສະລິບບໍ່ຊັດເຈນ" }];
     return [];

@@ -50,3 +50,25 @@ export const dotClass: Record<WeekStatus, string> = {
   overdue: "bg-status-overdue",
   unpaid: "bg-status-unpaid",
 };
+
+/** Colors for a payment row's own status (approved/pending/rejected). */
+export const paymentStyle = {
+  approved: {
+    fill: "bg-status-paid text-white",
+    soft: "bg-status-paid-bg text-status-paid",
+    text: "text-status-paid",
+    icon: Check,
+  },
+  pending: {
+    fill: "bg-status-pending text-white",
+    soft: "bg-status-pending-bg text-status-pending",
+    text: "text-status-pending",
+    icon: Hourglass,
+  },
+  rejected: {
+    fill: "bg-status-rejected text-white",
+    soft: "bg-status-rejected-bg text-status-rejected",
+    text: "text-status-rejected",
+    icon: RotateCcw,
+  },
+} as const;
