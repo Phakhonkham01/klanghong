@@ -1,0 +1,23 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - nvm install 22 && nvm use 22
+        - npm install -g pnpm@12.11.2
+        # Hoisted layout: Amplify's SSR bundler doesn't follow pnpm's symlinked node_modules.
+        - pnpm install --frozen-lockfile --config.node-linker=hoisted
+    build:
+      commands:
+        # Amplify env vars exist only at build time; write the server ones to .env.production
+        # so SSR, server actions and middleware can read them at runtime.
+        - env | grep -E '^(NEXT_PUBLIC_SUPABASE_URL|NEXT_PUBLIC_SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY|WENOVA_API_TOKEN|WENOVA_SMS_HEADER|WENOVA_USE_PACKAGE|OTP_SECRET|OTP_GLOBAL_DAILY_LIMIT|APP_TIMEZONE)=' >> .env.production || true
+        - pnpm build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - .next/cache/**/*
+      - node_modules/**/*
