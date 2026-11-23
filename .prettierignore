@@ -1,0 +1,5 @@
+pnpm-lock.yaml
+node_modules
+.next
+src/types/database.ts
+docs/klanghong-claude-code-prompt.md
