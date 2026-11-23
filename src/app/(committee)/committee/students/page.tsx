@@ -1,6 +1,9 @@
-import { Placeholder } from "@/components/layout/placeholder";
+import { StudentsManager } from "@/components/committee/students-manager";
+import { demoStudents } from "@/lib/demo-committee";
 import { lo } from "@/lib/i18n/lo";
 
+export const metadata = { title: lo.nav.students };
+
 export default function Page() {
-  return <Placeholder title={lo.nav.students} />;
+  return <StudentsManager initial={demoStudents} />;
 }

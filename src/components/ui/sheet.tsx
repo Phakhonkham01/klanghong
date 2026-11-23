@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
+import { lo } from "@/lib/i18n/lo";
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
@@ -65,7 +66,7 @@ function SheetContent({
             render={<Button variant="ghost" className="absolute top-3 right-3" size="icon-sm" />}
           >
             <XIcon />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{lo.common.close}</span>
           </SheetPrimitive.Close>
         )}
       </SheetPrimitive.Popup>

@@ -14,3 +14,6 @@ Decisions taken where the brief was ambiguous. Items marked **(confirm)** are wa
 - Palette is now fresh emerald (`--brand`) + sky (`--sky`) with streak orange and gold accents; white background; radius 1rem. Re-theme via the tokens at the top of `src/app/globals.css`.
 - Student dashboard, pay flow and login run on demo data from `src/lib/demo.ts` until Supabase is connected; the pay flow does not upload anything yet and the login form only validates and shows a toast.
 - `/pay` runs full-screen (no header/bottom nav), like a focused task.
+- Committee area (overview, review queue, payment matrix + student detail, students, expenses, reports, settings, audit) runs on demo data from `src/lib/demo-committee.ts`. Approve/reject, cash payments, student add/import/deactivate, expense add/edit/delete and settings save only change local page state or show a toast until server actions exist.
+- Review queue shows a generated stand-in slip; real slips will come from short-lived signed URLs. Desktop shortcuts: A approve, R reject, ←/→ move.
+- Matrix cells use slate for "unpaid" (not the brand green) so they can't be confused with "paid". CSV exports add a UTF-8 BOM for Excel and neutralize formula injection.
