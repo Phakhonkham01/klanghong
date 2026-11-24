@@ -3,9 +3,9 @@
 import { useActionState } from "react";
 import { setupAccountAction, type FormState } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
+import { NewPasswordInput } from "@/components/auth/new-password-input";
 import { Input } from "@/components/ui/input";
 import { lo } from "@/lib/i18n/lo";
-import { PASSWORD_MAX } from "@/lib/validators";
 
 const field = "h-13 rounded-2xl border-2 bg-muted/40 px-4 text-base md:text-base";
 
@@ -28,23 +28,17 @@ export function NameForm({ phone }: { phone: string }) {
         autoFocus
         className={field}
       />
-      <Input
+      <NewPasswordInput
         name="password"
-        type="password"
         placeholder={lo.changePassword.newPassword}
         aria-label={lo.changePassword.newPassword}
-        autoComplete="new-password"
-        maxLength={PASSWORD_MAX}
         required
         className={field}
       />
-      <Input
+      <NewPasswordInput
         name="confirm"
-        type="password"
         placeholder={lo.changePassword.confirm}
         aria-label={lo.changePassword.confirm}
-        autoComplete="new-password"
-        maxLength={PASSWORD_MAX}
         required
         className={field}
       />

@@ -280,7 +280,11 @@ export function PayFlow({
               <div className="mt-5 grid place-items-center rounded-2xl border-2 border-dashed p-6 text-center text-muted-foreground">
                 {bank.qrUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={bank.qrUrl} alt={lo.pay.qrHint} className="size-56 rounded-xl" />
+                  <img
+                    src={bank.qrUrl}
+                    alt={lo.pay.qrHint}
+                    className="h-auto max-h-[60dvh] w-full max-w-72 rounded-xl object-contain"
+                  />
                 ) : (
                   <QrCode className="size-24" strokeWidth={1.4} aria-hidden />
                 )}

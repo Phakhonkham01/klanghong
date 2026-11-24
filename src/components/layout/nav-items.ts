@@ -9,7 +9,6 @@ import {
   Table2,
   UserRound,
   Users,
-  Wallet,
   Receipt,
   type LucideIcon,
 } from "lucide-react";
@@ -19,7 +18,7 @@ export type NavItem = { href: string; label: string; icon: LucideIcon; exact?: b
 
 export const studentNav: NavItem[] = [
   { href: "/dashboard", label: lo.nav.dashboard, icon: House },
-  { href: "/pay", label: lo.nav.pay, icon: Wallet },
+  { href: "/expenses", label: lo.nav.classExpenses, icon: Receipt },
   { href: "/history", label: lo.nav.history, icon: History },
   { href: "/profile", label: lo.nav.profile, icon: UserRound },
 ];

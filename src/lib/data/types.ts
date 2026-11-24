@@ -54,6 +54,7 @@ export interface ExpenseView {
 export type AuditAction =
   | "approve"
   | "reject"
+  | "reopen"
   | "expense_create"
   | "expense_update"
   | "expense_delete"

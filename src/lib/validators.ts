@@ -3,6 +3,13 @@
 export const STUDENT_CODE_RE = /^[A-Z0-9]{3,20}$/;
 export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 72; // bcrypt limit used by Supabase Auth
+/** New passwords: English letters, digits and symbols only (printable ASCII, no spaces). */
+const PASSWORD_CHARS_RE = /^[\x21-\x7E]*$/;
+
+/** Removes every character a new password may not contain (Lao, Thai, spaces, emoji...). */
+export function stripPasswordChars(input: string): string {
+  return input.replace(/[^\x21-\x7E]/g, "");
+}
 
 /** Uppercase, strip spaces; returns null when it is not a valid student code. */
 export function normalizeStudentCode(input: unknown): string | null {
@@ -19,11 +26,12 @@ export function codeToEmail(code: string): string {
   return `${code.toLowerCase()}@klanghong.local`;
 }
 
-export type PasswordProblem = "too_short" | "too_long" | "mismatch" | null;
+export type PasswordProblem = "too_short" | "too_long" | "invalid_chars" | "mismatch" | null;
 
 export function checkNewPassword(password: string, confirm: string): PasswordProblem {
   if (password.length < PASSWORD_MIN) return "too_short";
   if (password.length > PASSWORD_MAX) return "too_long";
+  if (!PASSWORD_CHARS_RE.test(password)) return "invalid_chars";
   if (password !== confirm) return "mismatch";
   return null;
 }

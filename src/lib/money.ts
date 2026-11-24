@@ -22,3 +22,9 @@ export function formatKipCompact(amount: number): string {
   if (abs >= 1_000) return `${trim(amount / 1_000)}K`;
   return String(Math.round(amount));
 }
+
+/** Full Kip amount with the Lao word after it: `10,000 ກີບ`. */
+export function formatKipLao(amount: number | bigint): string {
+  const value = typeof amount === "bigint" ? amount : Math.round(amount);
+  return `${kipFormatter.format(value)} ກີບ`;
+}

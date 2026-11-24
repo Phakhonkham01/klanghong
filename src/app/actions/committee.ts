@@ -18,6 +18,7 @@ function revalidateMoney() {
   for (const p of [
     "/committee",
     "/committee/expenses",
+    "/expenses",
     "/committee/reports",
     "/dashboard",
     "/committee/audit",

@@ -58,6 +58,7 @@ export async function signInAction(_prev: FormState, form: FormData): Promise<Fo
 function passwordError(problem: ReturnType<typeof checkNewPassword>): string | null {
   if (problem === "too_short") return lo.changePassword.tooShort;
   if (problem === "too_long") return lo.changePassword.tooLong;
+  if (problem === "invalid_chars") return lo.changePassword.invalidChars;
   if (problem === "mismatch") return lo.changePassword.mismatch;
   return null;
 }
@@ -89,8 +90,16 @@ export async function signInPhoneAction(_prev: FormState, form: FormData): Promi
     password,
   });
   if (error || !data.user) {
+    if (error?.status === 429) return { error: lo.login.tooMany, code: typed };
+    // A sign-up left before choosing a password has none yet: point to "sign up" to resume.
+    const { data: unfinished } = await createSupabaseAdminClient()
+      .from("profiles")
+      .select("id")
+      .eq("phone", phone)
+      .eq("must_set_name", true)
+      .maybeSingle();
     return {
-      error: error?.status === 429 ? lo.login.tooMany : lo.otp.invalidCredentials,
+      error: unfinished ? lo.otp.unfinishedSignup : lo.otp.invalidCredentials,
       code: typed,
     };
   }

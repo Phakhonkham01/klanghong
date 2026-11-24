@@ -8,9 +8,11 @@ import { readImageUpload } from "@/lib/files";
 import { lo } from "@/lib/i18n/lo";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { PaymentStatus } from "@/lib/status";
 import { checkPayableWeek } from "@/lib/week";
 
 const MAX_WEEKS = 26;
+const STATUSES: PaymentStatus[] = ["pending", "approved", "rejected"];
 
 function mapDbError(message: string, code?: string): string {
   if (code === "23505") return lo.errors.weekTaken;
@@ -29,6 +31,7 @@ function revalidateAll() {
     "/dashboard",
     "/history",
     "/pay",
+    "/expenses",
     "/profile",
     "/committee",
     "/committee/review",
@@ -130,23 +133,32 @@ export async function getSlipUrlAction(paymentId: string): Promise<ActionResult<
   return { ok: true, data: signed.signedUrl };
 }
 
+/**
+ * Sets a slip's status. `from` is the status the committee saw; the update only applies if it
+ * is still that (another reviewer may have changed it). Reviewed slips can go back to pending
+ * or be flipped approved ↔ rejected; cash payments cannot change.
+ */
 export async function reviewPaymentAction(
   paymentId: string,
-  decision: "approved" | "rejected",
+  decision: PaymentStatus,
   reason?: string,
+  from: PaymentStatus = "pending",
 ): Promise<ActionResult> {
   await requireSession("committee");
+  if (!STATUSES.includes(decision) || !STATUSES.includes(from) || decision === from)
+    return { ok: false, error: lo.errors.generic };
   const why = (reason ?? "").trim();
   if (decision === "rejected" && why.length < 5)
     return { ok: false, error: lo.errors.reasonTooShort };
 
   const supabase = await createSupabaseServerClient();
-  // reviewed_by / reviewed_at / self_reviewed are set by the update trigger.
+  // reviewed_by / reviewed_at / self_reviewed are set (or cleared) by the update trigger.
   const { data, error } = await supabase
     .from("payments")
     .update({ status: decision, reject_reason: decision === "rejected" ? why.slice(0, 200) : null })
     .eq("id", paymentId)
-    .eq("status", "pending")
+    .eq("status", from)
+    .eq("source", "transfer")
     .select("id");
   if (error) return { ok: false, error: mapDbError(error.message, error.code) };
   if (!data?.length) return { ok: false, error: lo.errors.alreadyReviewed };

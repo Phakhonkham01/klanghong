@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { Check, ChevronLeft, ChevronRight, Inbox, Keyboard, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Hourglass, Inbox, Keyboard, X } from "lucide-react";
 import { toast } from "sonner";
 import { dotClass, paymentStyle } from "@/components/student/status-style";
 import { Button } from "@/components/ui/button";
@@ -43,11 +43,13 @@ function Detail({
   item,
   onApprove,
   onReject,
+  onReopen,
   onZoom,
 }: {
   item: ReviewItem;
   onApprove: () => void;
   onReject: () => void;
+  onReopen: () => void;
   onZoom: () => void;
 }) {
   return (
@@ -117,14 +119,36 @@ function Detail({
           </Button>
         </div>
       ) : (
-        <div className={cn("rounded-2xl p-3", paymentStyle[item.status].soft)}>
-          <p className="font-bold">{lo.status[item.status]}</p>
-          {item.reject_reason ? <p className="text-sm">{item.reject_reason}</p> : null}
-          {item.reviewer ? (
-            <p className="text-xs opacity-80">
-              {t.reviewedBy} {item.reviewer}
-              {item.reviewed_at ? ` · ${formatDateTimeLo(item.reviewed_at)}` : ""}
-            </p>
+        <div className="space-y-3">
+          <div className={cn("rounded-2xl p-3", paymentStyle[item.status].soft)}>
+            <p className="font-bold">{lo.status[item.status]}</p>
+            {item.reject_reason ? <p className="text-sm">{item.reject_reason}</p> : null}
+            {item.reviewer ? (
+              <p className="text-xs opacity-80">
+                {t.reviewedBy} {item.reviewer}
+                {item.reviewed_at ? ` · ${formatDateTimeLo(item.reviewed_at)}` : ""}
+              </p>
+            ) : null}
+          </div>
+          {/* Change a reviewed slip (cash payments are always approved). */}
+          {item.source === "transfer" ? (
+            <div>
+              <p className="mb-2 text-xs font-bold text-muted-foreground">{t.changeStatus}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Button variant="tile" size="xl" onClick={onReopen}>
+                  <Hourglass className="size-5" strokeWidth={2.6} /> {t.toPending}
+                </Button>
+                {item.status === "approved" ? (
+                  <Button variant="chunky-danger" size="xl" onClick={onReject}>
+                    <X className="size-5" strokeWidth={3} /> {t.reject}
+                  </Button>
+                ) : (
+                  <Button variant="chunky" size="xl" onClick={onApprove}>
+                    <Check className="size-5" strokeWidth={3} /> {t.approve}
+                  </Button>
+                )}
+              </div>
+            </div>
           ) : null}
         </div>
       )}
@@ -184,8 +208,8 @@ export function ReviewQueue({
   );
 
   const decide = useCallback(
-    (item: ReviewItem, status: "approved" | "rejected", why?: string) => {
-      // Pick the next pending item before this one leaves the list.
+    (item: ReviewItem, status: PaymentStatus, why?: string) => {
+      // Pick the next item before this one leaves the current tab.
       const pos = list.findIndex((i) => i.id === item.id);
       const next = list[pos + 1] ?? list[pos - 1];
       const before = item;
@@ -197,19 +221,18 @@ export function ReviewQueue({
                 ...i,
                 status,
                 reject_reason: why ?? null,
-                reviewer: reviewerName,
-                reviewed_at: new Date().toISOString(),
+                reviewer: status === "pending" ? null : reviewerName,
+                reviewed_at: status === "pending" ? null : new Date().toISOString(),
               }
             : i,
         ),
       );
       setSelectedId(isDesktop && next ? next.id : null);
-      reviewPaymentAction(item.id, status, why)
+      reviewPaymentAction(item.id, status, why, before.status)
         .then((r) => {
           if (r.ok) {
-            toast.success(
-              `${status === "approved" ? t.approved : t.rejected} · ${item.studentName}`,
-            );
+            const done = { approved: t.approved, rejected: t.rejected, pending: t.reopened };
+            toast.success(`${done[status]} · ${item.studentName}`);
           } else {
             setItems((all) => all.map((i) => (i.id === before.id ? before : i)));
             toast.error(r.error);
@@ -253,6 +276,7 @@ export function ReviewQueue({
       item={activeItem}
       onApprove={() => decide(activeItem, "approved")}
       onReject={openReject}
+      onReopen={() => decide(activeItem, "pending")}
       onZoom={() => setZoom(true)}
     />
   ) : null;
