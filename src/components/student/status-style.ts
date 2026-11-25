@@ -43,6 +43,27 @@ export const nodeStyle: Record<NodeKind, { className: string; icon: LucideIcon }
   },
 };
 
+/**
+ * Week path ("game map") nodes: Duolingo-like lime green for paid weeks, blue for the week to pay
+ * now, light grey for locked weeks. Other statuses keep their usual colors.
+ */
+export const pathNodeStyle: Record<NodeKind, { className: string; icon: LucideIcon }> = {
+  ...nodeStyle,
+  paid: {
+    className: "bg-grass text-white [--press-shade:var(--grass-shade)]",
+    icon: Check,
+  },
+  unpaid: {
+    className: "bg-sky text-white [--press-shade:var(--sky-shade)]",
+    icon: Wallet,
+  },
+  future: {
+    className:
+      "bg-muted text-muted-foreground/70 [--press-shade:color-mix(in_oklch,var(--muted),black_14%)]",
+    icon: Lock,
+  },
+};
+
 export const dotClass: Record<WeekStatus, string> = {
   paid: "bg-status-paid",
   pending: "bg-status-pending",

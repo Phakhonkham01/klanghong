@@ -12,7 +12,7 @@ import { lo } from "@/lib/i18n/lo";
 import { formatKip } from "@/lib/money";
 import { buildStudentWeeks, computeStreak, summarizeOutstanding } from "@/lib/status";
 import { cn } from "@/lib/utils";
-import { daysUntilDeadline } from "@/lib/week";
+import { daysUntilDeadline, todayInTz } from "@/lib/week";
 
 export default async function Page() {
   const { userId } = await requireSession();
@@ -90,7 +90,7 @@ export default async function Page() {
         </section>
       ) : null}
 
-      <WeekPath entries={entries} />
+      <WeekPath entries={entries} today={todayInTz(now)} />
     </div>
   );
 }

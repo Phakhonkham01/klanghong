@@ -11,6 +11,8 @@
   --color-sky: var(--sky);
   --color-sky-shade: var(--sky-shade);
   --color-streak: var(--streak);
+  --color-grass: var(--grass);
+  --color-grass-shade: var(--grass-shade);
   --color-gold: var(--gold);
   --color-tile: var(--tile);
   --color-tile-shade: var(--tile-shade);
@@ -69,14 +71,17 @@
 
 :root {
   /* Brand accent: change these two tokens to re-theme the whole app. */
-  --brand: oklch(0.68 0.16 163); /* fresh emerald */
+  --brand: oklch(0.748 0.229 137); /* Duolingo-style green #58CC02 */
   --brand-2: oklch(0.7 0.15 237); /* sky, used in gradients */
-  --brand-shade: oklch(0.55 0.14 163); /* 3D bottom edge of brand buttons */
+  --brand-shade: oklch(0.652 0.189 134); /* #58A700, 3D bottom edge of brand buttons */
 
   /* Playful accents (hero card, streak, stars, tiles). */
   --sky: oklch(0.7 0.15 237);
   --sky-shade: oklch(0.58 0.14 240);
   --streak: oklch(0.74 0.18 55);
+  /* Week-path green: same as the brand. */
+  --grass: var(--brand);
+  --grass-shade: var(--brand-shade);
   --gold: oklch(0.84 0.16 85);
   --tile: oklch(1 0 0);
   --tile-shade: oklch(0.9 0.01 255);
@@ -93,14 +98,14 @@
   --secondary-foreground: oklch(0.208 0.042 265.8);
   --muted: oklch(0.968 0.007 247.9);
   --muted-foreground: oklch(0.446 0.043 257.3); /* slate-600 for AA */
-  --accent: oklch(0.96 0.04 163);
-  --accent-foreground: oklch(0.4 0.1 163);
+  --accent: oklch(0.955 0.054 129);
+  --accent-foreground: oklch(0.482 0.149 137);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.929 0.013 255.5);
   --input: oklch(0.869 0.022 252.9);
   --ring: var(--brand);
   --chart-1: var(--brand);
-  --chart-2: oklch(0.627 0.17 149.2);
+  --chart-2: oklch(0.748 0.229 137);
   --chart-3: oklch(0.769 0.165 70.1);
   --chart-4: oklch(0.577 0.245 27.3);
   --chart-5: oklch(0.554 0.046 257.4);
@@ -109,14 +114,14 @@
   --sidebar-foreground: oklch(0.208 0.042 265.8);
   --sidebar-primary: var(--brand);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.96 0.04 163);
-  --sidebar-accent-foreground: oklch(0.4 0.1 163);
+  --sidebar-accent: oklch(0.955 0.054 129);
+  --sidebar-accent-foreground: oklch(0.482 0.149 137);
   --sidebar-border: oklch(0.929 0.013 255.5);
   --sidebar-ring: var(--brand);
 
   /* Payment status colors (chip, dot, matrix cell). */
-  --status-paid: oklch(0.596 0.145 163.2); /* emerald-600 */
-  --status-paid-bg: oklch(0.95 0.052 163.1);
+  --status-paid: oklch(0.652 0.189 134); /* #58A700 */
+  --status-paid-bg: oklch(0.955 0.101 131); /* #D7FFB8 */
   --status-pending: oklch(0.666 0.157 58.3); /* amber-600 */
   --status-pending-bg: oklch(0.962 0.059 95.6);
   --status-rejected: oklch(0.577 0.245 27.3); /* red-600 */
@@ -128,9 +133,9 @@
 }
 
 .dark {
-  --brand: oklch(0.72 0.16 163);
+  --brand: oklch(0.76 0.22 137);
   --brand-2: oklch(0.72 0.14 237);
-  --brand-shade: oklch(0.52 0.12 163);
+  --brand-shade: oklch(0.58 0.17 134);
   --sky: oklch(0.65 0.14 237);
   --sky-shade: oklch(0.48 0.12 240);
   --streak: oklch(0.76 0.17 55);
@@ -149,14 +154,14 @@
   --secondary-foreground: oklch(0.984 0.003 247.9);
   --muted: oklch(0.279 0.041 260);
   --muted-foreground: oklch(0.704 0.04 256.8);
-  --accent: oklch(0.3 0.06 163);
-  --accent-foreground: oklch(0.9 0.08 163);
+  --accent: oklch(0.3 0.07 137);
+  --accent-foreground: oklch(0.88 0.15 132);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: var(--brand);
   --chart-1: var(--brand);
-  --chart-2: oklch(0.696 0.17 162.5);
+  --chart-2: oklch(0.77 0.22 137);
   --chart-3: oklch(0.769 0.188 70.1);
   --chart-4: oklch(0.704 0.191 22.2);
   --chart-5: oklch(0.704 0.04 256.8);
@@ -169,8 +174,8 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: var(--brand);
 
-  --status-paid: oklch(0.765 0.177 163.2);
-  --status-paid-bg: oklch(0.3 0.06 163);
+  --status-paid: oklch(0.8 0.2 133);
+  --status-paid-bg: oklch(0.3 0.07 137);
   --status-pending: oklch(0.828 0.189 84.4);
   --status-pending-bg: oklch(0.32 0.07 70);
   --status-rejected: oklch(0.704 0.191 22.2);
