@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Download, Search, Users } from "lucide-react";
 import { nodeStyle } from "@/components/student/status-style";
 import { Button } from "@/components/ui/button";
@@ -30,11 +29,8 @@ function cellStyle(status: WeekStatus) {
 function Cell({ status, label }: { status: WeekStatus; label: string }) {
   const { className, icon: Icon } = cellStyle(status);
   return (
-    <span
-      title={label}
-      className={cn("mx-auto grid size-8 place-items-center rounded-lg", className)}
-    >
-      <Icon className="size-4" strokeWidth={3} aria-hidden />
+    <span title={label} className={cn("grid size-7 place-items-center rounded-lg", className)}>
+      <Icon className="size-3.5" strokeWidth={3} aria-hidden />
       <span className="sr-only">{label}</span>
     </span>
   );
@@ -49,7 +45,6 @@ export function MembersMatrix({
   rows: MemberRow[];
   initialFilter: Filter;
 }) {
-  const router = useRouter();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>(initialFilter);
   // `end` is the exclusive index of the last visible week; default shows the latest PAGE weeks.
@@ -175,83 +170,54 @@ export function MembersMatrix({
           <p className="font-bold">{t.noMatch}</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border-2">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b-2 bg-muted/40">
-                <th
-                  scope="col"
-                  className="sticky left-0 z-10 min-w-44 bg-muted px-3 py-2.5 text-left font-bold"
-                >
-                  {t.student}
-                </th>
-                {visible.map((w, i) => (
-                  <th
-                    key={w}
-                    scope="col"
-                    className={cn(
-                      "px-1 py-2.5 text-center text-xs font-bold whitespace-nowrap text-muted-foreground",
-                      start + i === weeks.length - 1 && "text-sky",
-                    )}
-                  >
-                    {formatDateLo(w, false)}
-                  </th>
-                ))}
-                <th scope="col" className="px-3 py-2.5 text-right font-bold whitespace-nowrap">
-                  {t.totalPaid}
-                </th>
-                <th scope="col" className="px-3 py-2.5 text-center font-bold whitespace-nowrap">
-                  {t.overdueWeeks}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => (
-                <tr
-                  key={r.id}
-                  onClick={() => router.push(`/committee/members/${r.id}`)}
-                  className="group cursor-pointer border-b last:border-b-0 hover:bg-muted/50"
-                >
-                  <th
-                    scope="row"
-                    className="sticky left-0 z-10 bg-background px-3 py-2 text-left group-hover:bg-muted"
-                  >
-                    <Link
-                      href={`/committee/members/${r.id}`}
-                      className="block font-bold hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {r.name}
-                    </Link>
-                    <span className="money text-xs font-normal text-muted-foreground">
-                      {r.code}
-                    </span>
-                  </th>
-                  {r.statuses.slice(start, end).map((s, i) => (
-                    <td key={visible[i]} className="px-1 py-2">
-                      <Cell
-                        status={s}
-                        label={`${formatDateLo(visible[i]!, false)} · ${lo.status[s]}`}
-                      />
-                    </td>
+        <ul className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          {filtered.map((r) => (
+            <li key={r.id}>
+              <Link
+                href={`/committee/members/${r.id}`}
+                className={cn(
+                  "flex h-full flex-col gap-2.5 rounded-2xl border-2 p-3 transition-colors hover:border-sky/50 hover:bg-muted/40 sm:p-4",
+                  r.overdueCount > 0 && "border-status-overdue/40",
+                )}
+              >
+                <div className="flex min-w-0 items-start gap-2.5">
+                  <span className="hidden size-9 shrink-0 place-items-center rounded-full bg-sky/15 font-black text-sky sm:grid">
+                    {(r.name.replace(/^ນາງ /, "") || "?").slice(0, 1)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="line-clamp-2 leading-snug font-bold break-words">{r.name}</p>
+                    <p className="truncate money text-xs text-muted-foreground">{r.code}</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-1">
+                  {r.statuses.slice(start, end).map((st, i) => (
+                    <Cell
+                      key={visible[i]}
+                      status={st}
+                      label={`${formatDateLo(visible[i]!, false)} · ${lo.status[st]}`}
+                    />
                   ))}
-                  <td className="px-3 py-2 text-right money font-bold whitespace-nowrap">
-                    {formatKip(r.totalPaid)}
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    {r.overdueCount ? (
-                      <span className="rounded-full bg-status-overdue-bg px-2 py-0.5 money text-xs font-bold text-status-overdue">
-                        {r.overdueCount}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">–</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                </div>
+
+                <div className="mt-auto flex items-end justify-between gap-2 border-t-2 pt-2">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold text-muted-foreground">{t.totalPaid}</p>
+                    <p className="truncate money text-sm font-bold">{formatKip(r.totalPaid)}</p>
+                  </div>
+                  {r.overdueCount ? (
+                    <span
+                      className="shrink-0 rounded-full bg-status-overdue-bg px-2 py-0.5 money text-xs font-bold text-status-overdue"
+                      title={t.overdueWeeks}
+                    >
+                      {t.overdueWeeks} {r.overdueCount}
+                    </span>
+                  ) : null}
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

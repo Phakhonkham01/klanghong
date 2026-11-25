@@ -188,66 +188,143 @@ export function StudentsManager({ initial }: { initial: StudentView[] }) {
               : lo.committee.members.noMatch}
         </p>
       ) : (
-        <ul className="divide-y-2 overflow-hidden rounded-2xl border-2">
+        <ul className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {filtered.map((s) => {
             const otpUsed = s.otpUsed ?? 0;
             return (
               <li
                 key={s.id}
                 className={cn(
-                  "flex flex-wrap items-center gap-3 px-4 py-3",
+                  "flex flex-col gap-2.5 rounded-2xl border-2 p-3 sm:p-4",
+                  s.lockedUntil && "border-status-rejected/40",
                   !s.isActive && "opacity-60",
                 )}
               >
-                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-sky/15 font-black text-sky">
-                  {(s.name.replace(/^ນາງ /, "") || "?").slice(0, 1)}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={cn("truncate font-bold", !s.name && "text-muted-foreground italic")}
-                  >
-                    {s.name || t.noName}
-                  </p>
-                  <p className="truncate money text-xs text-muted-foreground">
-                    {[s.phone ? formatPhone(s.phone) : null, s.code].filter(Boolean).join(" · ")}
-                    {s.phone ? (
-                      <span
-                        className={cn(
-                          "ml-2",
-                          otpUsed >= OTP.monthlyLimit && "font-bold text-status-rejected",
-                        )}
+                <div className="flex min-w-0 items-start gap-2.5">
+                  <span className="hidden size-9 shrink-0 place-items-center rounded-full bg-sky/15 font-black text-sky sm:grid">
+                    {(s.name.replace(/^ນາງ /, "") || "?").slice(0, 1)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={cn(
+                        "line-clamp-2 leading-snug font-bold break-words",
+                        !s.name && "text-muted-foreground italic",
+                      )}
+                    >
+                      {s.name || t.noName}
+                    </p>
+                    <p className="truncate money text-xs text-muted-foreground">
+                      {s.phone ? formatPhone(s.phone) : s.code}
+                    </p>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="-mt-1 -mr-1 size-8 shrink-0"
+                          aria-label={t.actions}
+                        />
+                      }
+                    >
+                      <MoreHorizontal />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-52">
+                      {s.approval === "rejected" ? (
+                        <DropdownMenuItem
+                          disabled={busy}
+                          onClick={() =>
+                            run(() => decideRegistrationAction(s.id, "approved"), t.approvedToast)
+                          }
+                        >
+                          <Check /> {t.approve}
+                        </DropdownMenuItem>
+                      ) : null}
+                      {s.lockedUntil ? (
+                        <DropdownMenuItem
+                          disabled={busy}
+                          onClick={() => run(() => unlockLoginAction(s.id), t.unlockDone)}
+                        >
+                          <LockOpen /> {t.unlock}
+                        </DropdownMenuItem>
+                      ) : null}
+                      {s.phone ? (
+                        <DropdownMenuItem
+                          disabled={busy}
+                          onClick={() => run(() => resetOtpQuotaAction(s.id), t.resetOtpDone)}
+                        >
+                          <RotateCcw /> {t.resetOtp}
+                        </DropdownMenuItem>
+                      ) : null}
+                      {s.code ? (
+                        <DropdownMenuItem
+                          disabled={busy}
+                          onClick={async () => {
+                            const r = await run(
+                              () => resetPasswordAction(s.id),
+                              t.resetDone(s.code ?? ""),
+                            );
+                            if (r?.ok) setCredentials(r.data);
+                          }}
+                        >
+                          <KeyRound /> {t.resetPassword}
+                        </DropdownMenuItem>
+                      ) : null}
+                      <DropdownMenuItem
+                        disabled={busy}
+                        variant={s.isActive ? "destructive" : "default"}
+                        onClick={() => run(() => setActiveAction(s.id, !s.isActive))}
                       >
-                        {t.otpUsed(otpUsed)}
-                      </span>
-                    ) : null}
-                  </p>
+                        <Power /> {s.isActive ? t.deactivate : t.activate}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-                {s.role === "committee" ? (
-                  <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-bold text-accent-foreground">
-                    {t.roleCommittee}
-                  </span>
-                ) : null}
-                {s.lockedUntil ? (
-                  <span className="rounded-full bg-status-rejected-bg px-2.5 py-0.5 text-xs font-bold text-status-rejected">
-                    {t.lockedUntil(formatDateTimeLo(s.lockedUntil))}
-                  </span>
-                ) : null}
-                {s.approval === "rejected" ? (
-                  <span className="rounded-full bg-status-rejected-bg px-2.5 py-0.5 text-xs font-bold text-status-rejected">
-                    {lo.status.rejected}
-                  </span>
-                ) : !s.isActive ? (
-                  <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold text-muted-foreground">
-                    {t.inactive}
-                  </span>
-                ) : null}
+
+                <div className="flex flex-wrap gap-1.5 text-[11px] font-bold">
+                  {s.phone ? (
+                    <span
+                      className={cn(
+                        "rounded-full bg-muted px-2 py-0.5 text-muted-foreground",
+                        otpUsed >= OTP.monthlyLimit && "bg-status-rejected-bg text-status-rejected",
+                      )}
+                    >
+                      {t.otpUsed(otpUsed)}
+                    </span>
+                  ) : null}
+                  {s.phone && s.code ? (
+                    <span className="rounded-full bg-muted px-2 py-0.5 money text-muted-foreground">
+                      {s.code}
+                    </span>
+                  ) : null}
+                  {s.role === "committee" ? (
+                    <span className="rounded-full bg-accent px-2 py-0.5 text-accent-foreground">
+                      {t.roleCommittee}
+                    </span>
+                  ) : null}
+                  {s.lockedUntil ? (
+                    <span className="rounded-full bg-status-rejected-bg px-2 py-0.5 text-status-rejected">
+                      {t.lockedUntil(formatDateTimeLo(s.lockedUntil))}
+                    </span>
+                  ) : null}
+                  {s.approval === "rejected" ? (
+                    <span className="rounded-full bg-status-rejected-bg px-2 py-0.5 text-status-rejected">
+                      {lo.status.rejected}
+                    </span>
+                  ) : !s.isActive ? (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
+                      {t.inactive}
+                    </span>
+                  ) : null}
+                </div>
 
                 {tab === "pending" ? (
-                  <div className="flex gap-2">
+                  <div className="mt-auto grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2">
                     <Button
                       variant="chunky-danger"
                       size="sm"
-                      className="h-9 px-3"
+                      className="h-9 px-2"
                       disabled={busy}
                       onClick={() =>
                         run(() => decideRegistrationAction(s.id, "rejected"), t.rejectedToast)
@@ -258,7 +335,7 @@ export function StudentsManager({ initial }: { initial: StudentView[] }) {
                     <Button
                       variant="chunky"
                       size="sm"
-                      className="h-9 px-3"
+                      className="h-9 px-2"
                       disabled={busy || s.mustSetName}
                       title={s.mustSetName ? t.noName : undefined}
                       onClick={() =>
@@ -269,63 +346,6 @@ export function StudentsManager({ initial }: { initial: StudentView[] }) {
                     </Button>
                   </div>
                 ) : null}
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={<Button variant="ghost" size="icon" aria-label={t.actions} />}
-                  >
-                    <MoreHorizontal />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-52">
-                    {s.approval === "rejected" ? (
-                      <DropdownMenuItem
-                        disabled={busy}
-                        onClick={() =>
-                          run(() => decideRegistrationAction(s.id, "approved"), t.approvedToast)
-                        }
-                      >
-                        <Check /> {t.approve}
-                      </DropdownMenuItem>
-                    ) : null}
-                    {s.lockedUntil ? (
-                      <DropdownMenuItem
-                        disabled={busy}
-                        onClick={() => run(() => unlockLoginAction(s.id), t.unlockDone)}
-                      >
-                        <LockOpen /> {t.unlock}
-                      </DropdownMenuItem>
-                    ) : null}
-                    {s.phone ? (
-                      <DropdownMenuItem
-                        disabled={busy}
-                        onClick={() => run(() => resetOtpQuotaAction(s.id), t.resetOtpDone)}
-                      >
-                        <RotateCcw /> {t.resetOtp}
-                      </DropdownMenuItem>
-                    ) : null}
-                    {s.code ? (
-                      <DropdownMenuItem
-                        disabled={busy}
-                        onClick={async () => {
-                          const r = await run(
-                            () => resetPasswordAction(s.id),
-                            t.resetDone(s.code ?? ""),
-                          );
-                          if (r?.ok) setCredentials(r.data);
-                        }}
-                      >
-                        <KeyRound /> {t.resetPassword}
-                      </DropdownMenuItem>
-                    ) : null}
-                    <DropdownMenuItem
-                      disabled={busy}
-                      variant={s.isActive ? "destructive" : "default"}
-                      onClick={() => run(() => setActiveAction(s.id, !s.isActive))}
-                    >
-                      <Power /> {s.isActive ? t.deactivate : t.activate}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </li>
             );
           })}

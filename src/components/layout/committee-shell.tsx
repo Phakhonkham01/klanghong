@@ -3,15 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { LogOut, Menu, UserRound } from "lucide-react";
+import { Ellipsis, LogOut, UserRound } from "lucide-react";
 import { signOutAction } from "@/app/(auth)/actions";
-import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { lo } from "@/lib/i18n/lo";
 import { cn } from "@/lib/utils";
 import { AppVersion } from "./app-version";
 import { Brand } from "./brand";
-import { committeeNav, isActive } from "./nav-items";
+import { committeeNav, isActive, type NavItem } from "./nav-items";
 import { ThemeToggle } from "./theme-toggle";
 
 function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
@@ -63,9 +62,83 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
   );
 }
 
+/** Phone bottom bar: the 4 most used pages, the rest under "more". */
+const PRIMARY = committeeNav.slice(0, 4);
+const MORE = committeeNav.slice(4);
+
+const tabClass =
+  "flex h-14 flex-col items-center justify-center gap-0.5 rounded-xl border-2 border-transparent text-[11px] font-bold whitespace-nowrap text-muted-foreground";
+
+function BottomNav({ pathname, onMore }: { pathname: string; onMore: () => void }) {
+  const moreActive = MORE.some((item) => isActive(pathname, item));
+  return (
+    <nav
+      aria-label="bottom"
+      className="fixed inset-x-0 bottom-0 z-30 border-t-2 bg-background pb-[env(safe-area-inset-bottom)] lg:hidden"
+    >
+      <ul className="mx-auto grid max-w-lg grid-cols-5 gap-1.5 px-2 py-2">
+        {PRIMARY.map((item) => {
+          const active = isActive(pathname, item);
+          const Icon = item.icon;
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(tabClass, active && "border-sky/50 bg-sky/10 text-sky")}
+              >
+                <Icon className="size-6" strokeWidth={active ? 2.8 : 2.2} aria-hidden />
+                {item.label}
+              </Link>
+            </li>
+          );
+        })}
+        <li>
+          <button
+            type="button"
+            onClick={onMore}
+            className={cn(tabClass, "w-full", moreActive && "border-sky/50 bg-sky/10 text-sky")}
+          >
+            <Ellipsis className="size-6" strokeWidth={moreActive ? 2.8 : 2.2} aria-hidden />
+            {lo.nav.more}
+          </button>
+        </li>
+      </ul>
+    </nav>
+  );
+}
+
+function MoreTile({
+  item,
+  pathname,
+  onNavigate,
+}: {
+  item: NavItem;
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  const active = isActive(pathname, item);
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 px-2 py-3 text-center text-xs leading-tight font-bold text-muted-foreground hover:bg-muted",
+        active && "border-sky/50 bg-sky/10 text-sky",
+      )}
+    >
+      <Icon className="size-6" strokeWidth={active ? 2.6 : 2.2} aria-hidden />
+      {item.label}
+    </Link>
+  );
+}
+
 export function CommitteeShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
       <aside className="sticky top-0 hidden h-dvh flex-col gap-6 border-r-2 bg-sidebar p-4 lg:flex">
@@ -79,32 +152,39 @@ export function CommitteeShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b-2 bg-background/90 px-4 backdrop-blur lg:hidden">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between bg-background/90 px-4 backdrop-blur lg:hidden">
           <Brand href="/committee" />
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-10"
-              aria-label={lo.nav.menu}
-              onClick={() => setOpen(true)}
-            >
-              <Menu className="size-5" />
-            </Button>
-          </div>
+          <ThemeToggle />
         </header>
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto rounded-t-3xl p-4">
             <SheetHeader className="p-0">
-              <SheetTitle>{lo.nav.committeeArea}</SheetTitle>
+              <SheetTitle>{lo.nav.more}</SheetTitle>
             </SheetHeader>
-            <nav aria-label={lo.nav.committeeArea}>
-              <NavList pathname={pathname} onNavigate={() => setOpen(false)} />
+            <nav aria-label={lo.nav.more} className="grid grid-cols-3 gap-2">
+              {MORE.map((item) => (
+                <MoreTile key={item.href} item={item} pathname={pathname} onNavigate={close} />
+              ))}
+              <MoreTile
+                item={{ href: "/dashboard", label: lo.nav.studentArea, icon: UserRound }}
+                pathname={pathname}
+                onNavigate={close}
+              />
             </nav>
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-destructive/30 text-sm font-bold text-destructive hover:bg-destructive/10"
+              >
+                <LogOut className="size-5" aria-hidden />
+                {lo.nav.logout}
+              </button>
+            </form>
+            <AppVersion className="text-center" />
           </SheetContent>
         </Sheet>
-        <main className="mx-auto max-w-6xl px-4 py-6 lg:px-8">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 pt-4 pb-28 lg:px-8 lg:py-6">{children}</main>
+        <BottomNav pathname={pathname} onMore={() => setOpen(true)} />
       </div>
     </div>
   );

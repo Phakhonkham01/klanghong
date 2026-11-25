@@ -25,6 +25,7 @@ export const lo = {
     studentArea: "ໜ້ານັກສຶກສາ",
     committeeArea: "ຄະນະຫ້ອງ",
     menu: "ເມນູ",
+    more: "ເພີ່ມເຕີມ",
     logout: "ອອກຈາກລະບົບ",
   },
   status: {
