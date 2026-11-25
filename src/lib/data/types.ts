@@ -28,6 +28,8 @@ export interface StudentView {
   mustSetName: boolean;
   /** OTP codes sent this month (committee view only). */
   otpUsed?: number;
+  /** Password sign-in locked until this instant (committee view only). */
+  lockedUntil?: string | null;
 }
 
 /** Approved, active profile: counts as a paying class member. */

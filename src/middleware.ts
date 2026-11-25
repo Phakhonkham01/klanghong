@@ -89,7 +89,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  forwarded.set(PROFILE_HEADER, encodeProfileHeader(profile));
+  const signed = await encodeProfileHeader(profile);
+  if (signed) forwarded.set(PROFILE_HEADER, signed);
   return pass();
 }
 

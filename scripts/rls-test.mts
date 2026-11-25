@@ -74,8 +74,40 @@ async function main() {
   const c = await makeUser("C", "committee");
   const d = await makeUser("D", "committee");
 
-  // --- inserts ---
+  // --- inserts (a transfer must point at a slip the student uploaded: migration 0007) ---
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "base64",
+  );
   const slipPath = `${a.id}/${week}/${randomUUID()}.png`;
+  const up = await a.client.storage
+    .from("slips")
+    .upload(slipPath, png, { contentType: "image/png" });
+  const dSlip = `${d.id}/${week}/${randomUUID()}.png`;
+  await d.client.storage.from("slips").upload(dSlip, png, { contentType: "image/png" });
+
+  const missing = await a.client.from("payments").insert({
+    student_id: a.id,
+    week_start: week,
+    amount: 1,
+    slip_path: `${a.id}/${week}/does-not-exist.png`,
+    slip_sha256: fakeHash(),
+  });
+  check(
+    "payment with a slip that was never uploaded rejected",
+    /bad_slip/.test(missing.error?.message ?? ""),
+  );
+  const othersSlip = await b.client.from("payments").insert({
+    student_id: b.id,
+    week_start: week,
+    amount: 1,
+    slip_path: slipPath,
+    slip_sha256: fakeHash(),
+  });
+  check(
+    "payment pointing at another student's slip rejected",
+    /bad_slip/.test(othersSlip.error?.message ?? ""),
+  );
   const ins = await a.client
     .from("payments")
     .insert({
@@ -160,11 +192,20 @@ async function main() {
     approve.error?.message,
   );
   check("reviewed_by set by trigger", approve.data?.reviewed_by === c.id);
+  // 0005: a reviewed slip may be re-reviewed (approved ↔ rejected), but not set to the same status
+  // and its slip/amount fields stay fixed.
+  const same = await c.client.from("payments").update({ status: "approved" }).eq("id", payId);
+  check("re-review to the same status refused", !!same.error);
   const again = await c.client
     .from("payments")
     .update({ status: "rejected", reject_reason: "ທົດສອບອີກ" })
     .eq("id", payId);
-  check("already reviewed cannot change", !!again.error);
+  check("committee can change a reviewed slip", !again.error, again.error?.message);
+  const back = await c.client
+    .from("payments")
+    .update({ status: "approved", reject_reason: null })
+    .eq("id", payId);
+  check("and change it back", !back.error, back.error?.message);
 
   // Committee D submits own slip; D cannot self-review while C exists.
   const dPay = await d.client
@@ -173,7 +214,7 @@ async function main() {
       student_id: d.id,
       week_start: week,
       amount: 1,
-      slip_path: `${d.id}/${week}/d.png`,
+      slip_path: dSlip,
       slip_sha256: fakeHash(),
     })
     .select()
@@ -213,13 +254,6 @@ async function main() {
   check("anonymous reads no payments", (anonPay.data ?? []).length === 0);
 
   // --- storage ---
-  const png = Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-    "base64",
-  );
-  const up = await a.client.storage
-    .from("slips")
-    .upload(slipPath, png, { contentType: "image/png" });
   check("student uploads into own folder", !up.error, up.error?.message);
   const upOther = await a.client.storage
     .from("slips")
@@ -240,7 +274,7 @@ async function main() {
   if (originalStart > week)
     await admin.from("settings").update({ start_date: originalStart }).eq("id", 1);
   if (cExp.data?.id) await admin.from("expenses").delete().eq("id", cExp.data.id);
-  await admin.storage.from("slips").remove([slipPath]);
+  await admin.storage.from("slips").remove([slipPath, dSlip]);
 }
 
 async function cleanup() {

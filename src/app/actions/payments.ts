@@ -17,6 +17,7 @@ const STATUSES: PaymentStatus[] = ["pending", "approved", "rejected"];
 function mapDbError(message: string, code?: string): string {
   if (code === "23505") return lo.errors.weekTaken;
   if (/future_week|before_start/.test(message)) return lo.errors.weekNotPayable;
+  if (/slip_reused/.test(message)) return lo.errors.slipReused;
   if (/self_review/.test(message)) return lo.errors.selfReview;
   if (/already_reviewed/.test(message)) return lo.errors.alreadyReviewed;
   if (/payments_reject_reason/.test(message)) return lo.errors.reasonTooShort;

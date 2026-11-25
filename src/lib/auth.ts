@@ -14,7 +14,7 @@ export type Session = { userId: string; profile: ProfileRow };
  * Fallback (e.g. a route the middleware matcher skips): ask Supabase directly.
  */
 export const getSession = cache(async (): Promise<Session | null> => {
-  const fromMiddleware = decodeProfileHeader((await headers()).get(PROFILE_HEADER));
+  const fromMiddleware = await decodeProfileHeader((await headers()).get(PROFILE_HEADER));
   if (fromMiddleware) {
     return fromMiddleware.is_active ? { userId: fromMiddleware.id, profile: fromMiddleware } : null;
   }
@@ -40,6 +40,7 @@ export async function requireSession(
   if (!session) redirect("/login");
   if (!opts.allowOnboarding) {
     if (session.profile.must_set_name) redirect("/welcome");
+    if (session.profile.must_change_password) redirect("/change-password");
     if (session.profile.approval !== "approved") redirect("/pending");
   }
   if (role === "committee" && session.profile.role !== "committee") redirect("/dashboard");

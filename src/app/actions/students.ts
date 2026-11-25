@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth";
 import type { ActionResult } from "@/lib/data/types";
 import { lo } from "@/lib/i18n/lo";
+import { clearLogin, loginAccount } from "@/lib/login-guard";
 import { normalizePhone, phoneToEmail } from "@/lib/phone";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -144,6 +145,25 @@ export async function resetOtpQuotaAction(studentId: string): Promise<ActionResu
     .from("otp_quota_resets")
     .upsert({ phone: profile.phone, reset_at: new Date().toISOString(), reset_by: userId });
   if (error) return { ok: false, error: lo.errors.generic };
+  revalidatePath("/committee/students");
+  return { ok: true };
+}
+
+/** Lift a password-sign-in lock (5 wrong passwords) before the 2 hours are up. */
+export async function unlockLoginAction(studentId: string): Promise<ActionResult> {
+  await requireSession("committee");
+  const admin = createSupabaseAdminClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("phone, student_code")
+    .eq("id", studentId)
+    .single();
+  if (!profile) return { ok: false, error: lo.errors.generic };
+  const accounts = [
+    profile.phone ? loginAccount("phone", profile.phone) : null,
+    profile.student_code ? loginAccount("code", profile.student_code) : null,
+  ].filter((a): a is string => a !== null);
+  await clearLogin(...accounts);
   revalidatePath("/committee/students");
   return { ok: true };
 }

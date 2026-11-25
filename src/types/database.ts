@@ -45,6 +45,18 @@ export type OtpQuotaResetRow = {
   reset_by: string | null;
 };
 
+export type LoginFailureRow = {
+  id: number;
+  account: string;
+  ip: string | null;
+  created_at: string;
+};
+
+export type LoginLockRow = {
+  account: string;
+  locked_until: string;
+};
+
 export type SettingsRow = {
   id: number;
   weekly_amount: number;
@@ -123,6 +135,12 @@ export type Database = {
         Partial<OtpRequestRow>
       >;
       otp_quota_resets: Table<OtpQuotaResetRow, Pick<OtpQuotaResetRow, "phone"> & Partial<OtpQuotaResetRow>, Partial<OtpQuotaResetRow>>;
+      login_failures: Table<
+        LoginFailureRow,
+        Pick<LoginFailureRow, "account"> & Partial<Omit<LoginFailureRow, "id">>,
+        Partial<LoginFailureRow>
+      >;
+      login_locks: Table<LoginLockRow, LoginLockRow, Partial<LoginLockRow>>;
     };
     Views: Record<string, never>;
     Functions: {

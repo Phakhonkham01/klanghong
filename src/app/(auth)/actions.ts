@@ -2,9 +2,19 @@
 
 import { redirect } from "next/navigation";
 import { homeFor } from "@/lib/auth";
+import { clientIp } from "@/lib/client-ip";
+import { formatDateTimeLo } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import { normalizePhone, phoneToEmail } from "@/lib/phone";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  beginLogin,
+  loginAccount,
+  loginFailed,
+  loginNotChecked,
+  loginSucceeded,
+  type LoginAttempt,
+} from "@/lib/login-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   checkNewPassword,
@@ -14,6 +24,23 @@ import {
 } from "@/lib/validators";
 
 export type FormState = { error: string | null; code?: string };
+
+/** Message for a refused attempt (account locked or too many from this IP). */
+function refusedMessage(a: Exclude<LoginAttempt, { ok: true }>, phoneAccount: boolean): string {
+  if (a.reason === "ip") return lo.login.lockedIp;
+  return lo.login.locked(formatDateTimeLo(a.until), phoneAccount);
+}
+
+/** Message after a wrong password: attempts left, or the new lock. */
+function wrongPasswordMessage(
+  base: string,
+  r: { left: number } | { until: Date },
+  phoneAccount: boolean,
+): string {
+  return "until" in r
+    ? lo.login.locked(formatDateTimeLo(r.until), phoneAccount)
+    : `${base} · ${lo.login.attemptsLeft(r.left)}`;
+}
 
 export async function signInAction(_prev: FormState, form: FormData): Promise<FormState> {
   const rawCode = form.get("code");
@@ -26,17 +53,24 @@ export async function signInAction(_prev: FormState, form: FormData): Promise<Fo
   const code = normalizeStudentCode(typed);
   if (!code) return { error: lo.login.invalidCode, code: typed };
 
+  const account = loginAccount("code", code);
+  const attempt = await beginLogin(account, await clientIp());
+  if (!attempt.ok) return { error: refusedMessage(attempt, false), code: typed };
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email: codeToEmail(code),
     password,
   });
   if (error || !data.user) {
-    return {
-      error: error?.status === 429 ? lo.login.tooMany : lo.login.invalidCredentials,
-      code: typed,
-    };
+    if (error?.status === 429) {
+      await loginNotChecked(attempt);
+      return { error: lo.login.tooMany, code: typed };
+    }
+    const r = await loginFailed(account, attempt);
+    return { error: wrongPasswordMessage(lo.login.invalidCredentials, r, false), code: typed };
   }
+  await loginSucceeded(account);
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -84,13 +118,20 @@ export async function signInPhoneAction(_prev: FormState, form: FormData): Promi
   const phone = normalizePhone(typed);
   if (!phone) return { error: lo.otp.invalidPhone, code: typed };
 
+  const account = loginAccount("phone", phone);
+  const attempt = await beginLogin(account, await clientIp());
+  if (!attempt.ok) return { error: refusedMessage(attempt, true), code: typed };
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email: phoneToEmail(phone),
     password,
   });
   if (error || !data.user) {
-    if (error?.status === 429) return { error: lo.login.tooMany, code: typed };
+    if (error?.status === 429) {
+      await loginNotChecked(attempt);
+      return { error: lo.login.tooMany, code: typed };
+    }
     // A sign-up left before choosing a password has none yet: point to "sign up" to resume.
     const { data: unfinished } = await createSupabaseAdminClient()
       .from("profiles")
@@ -98,11 +139,15 @@ export async function signInPhoneAction(_prev: FormState, form: FormData): Promi
       .eq("phone", phone)
       .eq("must_set_name", true)
       .maybeSingle();
-    return {
-      error: unfinished ? lo.otp.unfinishedSignup : lo.otp.invalidCredentials,
-      code: typed,
-    };
+    if (unfinished) {
+      // No password exists yet, so this is not a guess: don't count it.
+      await loginNotChecked(attempt);
+      return { error: lo.otp.unfinishedSignup, code: typed };
+    }
+    const r = await loginFailed(account, attempt);
+    return { error: wrongPasswordMessage(lo.otp.invalidCredentials, r, true), code: typed };
   }
+  await loginSucceeded(account);
   const { data: profile } = await supabase
     .from("profiles")
     .select("role, is_active, approval, must_set_name, must_change_password")

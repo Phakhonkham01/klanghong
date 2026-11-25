@@ -1,10 +1,11 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { sendOtp } from "wenova-link";
 import { homeFor } from "@/lib/auth";
+import { clientIp } from "@/lib/client-ip";
+import { clearLogin, loginAccount } from "@/lib/login-guard";
 import { formatDateLo } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import {
@@ -28,11 +29,6 @@ export type OtpPurpose = "signup" | "reset";
 export type OtpRequestState =
   | { ok: true; phone: string; remaining: number; resendIn: number; devCode?: string }
   | { ok: false; error: string };
-
-async function clientIp(): Promise<string | null> {
-  const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null;
-}
 
 async function usedThisMonth(phone: string, now: Date): Promise<number> {
   const admin = createSupabaseAdminClient();
@@ -185,11 +181,17 @@ export async function verifyOtpAction(
   if (!req) return { ok: false, error: t.expired };
   if (req.attempts >= OTP.maxAttempts) return { ok: false, error: t.tooManyAttempts };
 
+  // Count the attempt before comparing, as a compare-and-set on the counter: parallel guesses
+  // read the same value, so only one of them wins and the rest are refused without a check.
+  const { data: counted } = await admin
+    .from("otp_requests")
+    .update({ attempts: req.attempts + 1 })
+    .eq("id", req.id)
+    .eq("attempts", req.attempts)
+    .select("id");
+  if (!counted?.length) return { ok: false, error: t.tooManyAttempts };
+
   if (!otpMatches(phone, code, req.code_hash)) {
-    await admin
-      .from("otp_requests")
-      .update({ attempts: req.attempts + 1 })
-      .eq("id", req.id);
     const left = OTP.maxAttempts - req.attempts - 1;
     return { ok: false, error: left > 0 ? t.wrongCode(left) : t.tooManyAttempts };
   }
@@ -259,6 +261,8 @@ export async function verifyOtpAction(
     token_hash: tokenHash,
   });
   if (sessErr) return { ok: false, error: lo.errors.generic };
+  // The phone is proven: a password-sign-in lock on it no longer applies.
+  await clearLogin(loginAccount("phone", phone));
 
   if (purpose === "reset" && !profile.must_set_name) {
     // Forgot password: the verified phone may now choose a new one.

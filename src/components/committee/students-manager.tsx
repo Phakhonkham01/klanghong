@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Check,
   KeyRound,
+  LockOpen,
   MoreHorizontal,
   Power,
   RotateCcw,
@@ -21,6 +22,7 @@ import {
   resetOtpQuotaAction,
   resetPasswordAction,
   setActiveAction,
+  unlockLoginAction,
   type CreatedAccount,
 } from "@/app/actions/students";
 import { PhoneInput } from "@/components/phone-input";
@@ -35,6 +37,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { isMember, type ActionResult, type StudentView } from "@/lib/data/types";
+import { formatDateTimeLo } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import { OTP } from "@/lib/otp-policy";
 import { formatPhone } from "@/lib/phone";
@@ -224,6 +227,11 @@ export function StudentsManager({ initial }: { initial: StudentView[] }) {
                     {t.roleCommittee}
                   </span>
                 ) : null}
+                {s.lockedUntil ? (
+                  <span className="rounded-full bg-status-rejected-bg px-2.5 py-0.5 text-xs font-bold text-status-rejected">
+                    {t.lockedUntil(formatDateTimeLo(s.lockedUntil))}
+                  </span>
+                ) : null}
                 {s.approval === "rejected" ? (
                   <span className="rounded-full bg-status-rejected-bg px-2.5 py-0.5 text-xs font-bold text-status-rejected">
                     {lo.status.rejected}
@@ -277,6 +285,14 @@ export function StudentsManager({ initial }: { initial: StudentView[] }) {
                         }
                       >
                         <Check /> {t.approve}
+                      </DropdownMenuItem>
+                    ) : null}
+                    {s.lockedUntil ? (
+                      <DropdownMenuItem
+                        disabled={busy}
+                        onClick={() => run(() => unlockLoginAction(s.id), t.unlockDone)}
+                      >
+                        <LockOpen /> {t.unlock}
                       </DropdownMenuItem>
                     ) : null}
                     {s.phone ? (
