@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { lo } from "@/lib/i18n/lo";
 import { cn } from "@/lib/utils";
+import { AppVersion } from "./app-version";
 import { Brand } from "./brand";
 import { committeeNav, isActive } from "./nav-items";
 import { ThemeToggle } from "./theme-toggle";
@@ -56,6 +57,7 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
             {lo.nav.logout}
           </button>
         </form>
+        <AppVersion className="px-3 pt-1" />
       </li>
     </ul>
   );

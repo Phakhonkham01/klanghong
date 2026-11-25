@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { DarkModeRow } from "@/components/student/dark-mode-row";
 import { signOutAction } from "@/app/(auth)/actions";
+import { AppVersion } from "@/components/layout/app-version";
 import { profileLabel, requireSession } from "@/lib/auth";
 import { getPayments, getSettings } from "@/lib/data/queries";
 import { lo } from "@/lib/i18n/lo";
@@ -153,9 +154,7 @@ export default async function Page() {
         </div>
       </section>
 
-      <p className="text-center text-xs text-muted-foreground">
-        {lo.app.name} · {lo.profile.version} 0.1.0
-      </p>
+      <AppVersion className="text-center" />
     </div>
   );
 }
