@@ -83,6 +83,7 @@ export const lo = {
     path: "ເສັ້ນທາງການຈ່າຍ",
     upcoming: "ອາທິດຕໍ່ໄປ",
     payAheadNode: "ຈ່າຍລ່ວງໜ້າ",
+    now: "ຕອນນີ້",
     waitingReview: "ສົ່ງສະລິບແລ້ວ ລໍຖ້າຄະນະຫ້ອງກວດ",
     rejectedReason: (reason: string) => `ເຫດຜົນ: ${reason}`,
     viewHistory: "ເບິ່ງປະຫວັດ",
@@ -255,6 +256,7 @@ export const lo = {
   changePassword: {
     title: "ຕັ້ງລະຫັດຜ່ານໃໝ່",
     subtitle: "ກະລຸນາຕັ້ງລະຫັດຜ່ານໃໝ່ຂອງທ່ານເອງ ກ່ອນເລີ່ມໃຊ້ງານ",
+    subtitleOptional: "ໃສ່ລະຫັດຜ່ານໃໝ່ທີ່ຕ້ອງການ ແລ້ວກົດບັນທຶກ",
     newPassword: "ລະຫັດຜ່ານໃໝ່",
     confirm: "ຢືນຢັນລະຫັດຜ່ານໃໝ່",
     submit: "ບັນທຶກລະຫັດຜ່ານ",

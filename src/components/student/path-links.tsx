@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useLayoutEffect, useRef, useState } from "react";
+import { NowPopover } from "./now-popover";
 
 export type PathLink = {
   from: number;
@@ -88,67 +89,70 @@ export function PathLinks({ links }: { links: PathLink[] }) {
     : null;
 
   return (
-    <svg
-      ref={ref}
-      aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-visible"
-      width={state?.w ?? 0}
-      height={state?.h ?? 0}
-    >
-      {state?.curves.map((c, i) => {
-        const d = pathOf(c);
-        const dash = {
-          strokeDasharray: "12 11",
-          strokeLinecap: "round" as const,
-          strokeWidth: 6,
-        };
-        if (c.link.kind === "done") {
-          return <path key={i} d={d} fill="none" stroke="var(--grass)" {...dash} />;
-        }
-        if (c.link.kind === "future") {
+    <>
+      <svg
+        ref={ref}
+        aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-visible"
+        width={state?.w ?? 0}
+        height={state?.h ?? 0}
+      >
+        {state?.curves.map((c, i) => {
+          const d = pathOf(c);
+          const dash = {
+            strokeDasharray: "12 11",
+            strokeLinecap: "round" as const,
+            strokeWidth: 6,
+          };
+          if (c.link.kind === "done") {
+            return <path key={i} d={d} fill="none" stroke="var(--grass)" {...dash} />;
+          }
+          if (c.link.kind === "future") {
+            return (
+              <path
+                key={i}
+                d={d}
+                fill="none"
+                stroke="color-mix(in oklch, var(--muted-foreground), transparent 60%)"
+                {...dash}
+              />
+            );
+          }
+          const pct = Math.round(Math.min(1, Math.max(0, c.link.fraction ?? 0)) * 100);
           return (
-            <path
-              key={i}
-              d={d}
-              fill="none"
-              stroke="color-mix(in oklch, var(--muted-foreground), transparent 60%)"
-              {...dash}
-            />
-          );
-        }
-        const pct = Math.round(Math.min(1, Math.max(0, c.link.fraction ?? 0)) * 100);
-        return (
-          <g key={i}>
-            <mask id={`${maskId}-m`} maskUnits="userSpaceOnUse">
+            <g key={i}>
+              <mask id={`${maskId}-m`} maskUnits="userSpaceOnUse">
+                <path
+                  d={d}
+                  fill="none"
+                  stroke="white"
+                  strokeWidth={12}
+                  pathLength={100}
+                  strokeDasharray={`${pct} 100`}
+                />
+              </mask>
               <path
                 d={d}
                 fill="none"
-                stroke="white"
-                strokeWidth={12}
-                pathLength={100}
-                strokeDasharray={`${pct} 100`}
+                stroke="color-mix(in oklch, var(--muted-foreground), transparent 60%)"
+                {...dash}
               />
-            </mask>
-            <path
-              d={d}
-              fill="none"
-              stroke="color-mix(in oklch, var(--muted-foreground), transparent 60%)"
-              {...dash}
-            />
-            <path d={d} fill="none" stroke="var(--grass)" mask={`url(#${maskId}-m)`} {...dash} />
-          </g>
-        );
-      })}
-      {head ? (
-        <circle
-          cx={head.x}
-          cy={head.y}
-          r={8}
-          fill="var(--grass)"
-          stroke="var(--background)"
-          strokeWidth={3}
-        />
-      ) : null}
-    </svg>
+              <path d={d} fill="none" stroke="var(--grass)" mask={`url(#${maskId}-m)`} {...dash} />
+            </g>
+          );
+        })}
+        {head ? (
+          <circle
+            cx={head.x}
+            cy={head.y}
+            r={8}
+            fill="var(--grass)"
+            stroke="var(--background)"
+            strokeWidth={3}
+          />
+        ) : null}
+      </svg>
+      {head && state ? <NowPopover x={head.x} y={head.y} width={state.w} /> : null}
+    </>
   );
 }
