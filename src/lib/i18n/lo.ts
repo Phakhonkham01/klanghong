@@ -82,6 +82,7 @@ export const lo = {
     payNow: "ຈ່າຍເລີຍ",
     path: "ເສັ້ນທາງການຈ່າຍ",
     upcoming: "ອາທິດຕໍ່ໄປ",
+    payAheadNode: "ຈ່າຍລ່ວງໜ້າ",
     waitingReview: "ສົ່ງສະລິບແລ້ວ ລໍຖ້າຄະນະຫ້ອງກວດ",
     rejectedReason: (reason: string) => `ເຫດຜົນ: ${reason}`,
     viewHistory: "ເບິ່ງປະຫວັດ",

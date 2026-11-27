@@ -11,7 +11,7 @@ import { getClassWeekStats, getFundSummary, getPayments, getSettings } from "@/l
 import { formatDateLo } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import { formatKip } from "@/lib/money";
-import { buildStudentWeeks, computeStreak, summarizeOutstanding } from "@/lib/status";
+import { buildStudentWeeks, computeStreak, openWeeks, summarizeOutstanding } from "@/lib/status";
 import { cn } from "@/lib/utils";
 import { currentWeekStart, daysUntilDeadline, todayInTz } from "@/lib/week";
 
@@ -101,7 +101,14 @@ export default async function Page() {
         </section>
       ) : null}
 
-      <WeekPath entries={entries} today={todayInTz(now)} ahead={paidAhead} />
+      <WeekPath
+        entries={entries}
+        today={todayInTz(now)}
+        ahead={paidAhead}
+        payAhead={openWeeks(settings.startDate, payments, now)
+          .filter((o) => o.ahead)
+          .map((o) => o.weekStart)}
+      />
     </div>
   );
 }

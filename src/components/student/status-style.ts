@@ -2,6 +2,7 @@ import {
   Check,
   Hourglass,
   Lock,
+  Plus,
   RotateCcw,
   TriangleAlert,
   Wallet,
@@ -9,7 +10,8 @@ import {
 } from "lucide-react";
 import type { WeekStatus } from "@/lib/status";
 
-export type NodeKind = WeekStatus | "future";
+/** "ahead": an upcoming week that can be paid in advance now. */
+export type NodeKind = WeekStatus | "future" | "ahead";
 
 /** Fill + 3D edge for each week node; shade uses color-mix so it follows the theme. */
 export const nodeStyle: Record<NodeKind, { className: string; icon: LucideIcon }> = {
@@ -40,6 +42,10 @@ export const nodeStyle: Record<NodeKind, { className: string; icon: LucideIcon }
   future: {
     className: "bg-muted text-muted-foreground [--press-shade:var(--tile-shade)]",
     icon: Lock,
+  },
+  ahead: {
+    className: "border-4 border-sky bg-tile text-sky [--press-shade:var(--sky-shade)]",
+    icon: Plus,
   },
 };
 

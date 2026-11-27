@@ -15,14 +15,25 @@ const CURRENT_ID = "current-week";
 /** Horizontal offsets (px) that make the column of nodes snake left and right. */
 const ZIGZAG = [0, -56, -84, -56, 0, 56, 84, 56];
 
-type PathNode = { weekStart: IsoDate; kind: NodeKind; entry?: WeekEntry };
+type PathNode = {
+  weekStart: IsoDate;
+  kind: NodeKind;
+  entry?: WeekEntry;
+  /** The next week to pay ahead (gently pulses). */
+  nextUp?: boolean;
+};
 
 function Node({ node, offset }: { node: PathNode; offset: number }) {
   const { className, icon: Icon } = pathNodeStyle[node.kind];
   const isCurrent = node.entry?.isCurrent ?? false;
-  const payable = node.entry?.isPayable ?? false;
+  // Owed weeks, and upcoming weeks open for paying ahead, open the pay page.
+  const payable = (node.entry?.isPayable ?? false) || node.kind === "ahead";
   const label = `${formatDateLo(node.weekStart)} · ${
-    node.kind === "future" ? lo.dashboard.upcoming : lo.status[node.kind]
+    node.kind === "future"
+      ? lo.dashboard.upcoming
+      : node.kind === "ahead"
+        ? lo.dashboard.payAheadNode
+        : lo.status[node.kind]
   }`;
 
   const circle = (
@@ -31,6 +42,7 @@ function Node({ node, offset }: { node: PathNode; offset: number }) {
       className={cn(
         "grid size-[72px] press-3d place-items-center rounded-full [--press-depth:6px]",
         className,
+        node.nextUp && "animate-pulse",
       )}
     >
       <Icon className="size-8" strokeWidth={2.8} aria-hidden />
@@ -75,6 +87,11 @@ function Node({ node, offset }: { node: PathNode; offset: number }) {
       >
         {formatDateLo(node.weekStart, false)}
       </span>
+      {node.kind === "ahead" && node.nextUp ? (
+        <span className="mt-0.5 rounded-full bg-sky px-2 py-0.5 text-[10px] font-bold text-white">
+          {lo.dashboard.payAheadNode}
+        </span>
+      ) : null}
     </li>
   );
 }
@@ -110,6 +127,7 @@ export function WeekPath({
   entries,
   today,
   ahead = {},
+  payAhead = [],
   upcoming = 2,
   max = 8,
 }: {
@@ -118,6 +136,8 @@ export function WeekPath({
   today?: IsoDate;
   /** Upcoming weeks already paid ahead (approved) or waiting for review. */
   ahead?: Partial<Record<IsoDate, "paid" | "pending">>;
+  /** Upcoming weeks still open to pay, in order; only the first one is unlocked on the path. */
+  payAhead?: IsoDate[];
   upcoming?: number;
   max?: number;
 }) {
@@ -139,7 +159,16 @@ export function WeekPath({
   }
   const nodes: PathNode[] = [
     ...recent.map((entry) => ({ weekStart: entry.weekStart, kind: entry.status, entry })),
-    ...future.map((weekStart) => ({ weekStart, kind: ahead[weekStart] ?? ("future" as const) })),
+    ...future.map((weekStart): PathNode => {
+      const paid = ahead[weekStart];
+      if (paid) return { weekStart, kind: paid };
+      // Weeks unlock one at a time, in order: only the week right after the last paid one opens,
+      // and only once nothing older is still owed. The rest stay locked until it is paid.
+      if (weekStart === payAhead[0] && !recent.some((e) => e.isPayable)) {
+        return { weekStart, kind: "ahead", nextUp: true };
+      }
+      return { weekStart, kind: "future" };
+    }),
   ];
   // Days gone in this week (Mon = 1 … Sun = 7) fill the link from this week to the next.
   const dow = today ? isoWeekday(today) : 0;
@@ -152,7 +181,11 @@ export function WeekPath({
         fraction: dow / 7,
       };
     }
-    return { from: i, to: i + 1, kind: next.kind === "future" ? "future" : "done" };
+    return {
+      from: i,
+      to: i + 1,
+      kind: next.kind === "future" || next.kind === "ahead" ? "future" : "done",
+    };
   });
 
   return (
