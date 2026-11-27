@@ -24,6 +24,14 @@ export default async function Page() {
     getClassWeekStats(currentWeekStart(now)),
   ]);
   const entries = buildStudentWeeks(settings.startDate, payments, now);
+  // Upcoming weeks paid in advance: approved wins over waiting for review.
+  const thisWeek = currentWeekStart(now);
+  const paidAhead: Partial<Record<string, "paid" | "pending">> = {};
+  for (const p of payments) {
+    if (p.week_start <= thisWeek || p.status === "rejected") continue;
+    if (p.status === "approved") paidAhead[p.week_start] = "paid";
+    else paidAhead[p.week_start] ??= "pending";
+  }
   const current = entries.at(-1);
   const outstanding = summarizeOutstanding(entries, settings.weeklyAmount);
   const paidTotal = payments
@@ -92,7 +100,7 @@ export default async function Page() {
         </section>
       ) : null}
 
-      <WeekPath entries={entries} today={todayInTz(now)} />
+      <WeekPath entries={entries} today={todayInTz(now)} ahead={paidAhead} />
     </div>
   );
 }

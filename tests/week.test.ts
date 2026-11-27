@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   checkPayableWeek,
+  upcomingWeeks,
   currentWeekStart,
   daysUntilDeadline,
   isIsoDate,
@@ -101,11 +102,27 @@ describe("checkPayableWeek", () => {
     expect(checkPayableWeek("2026-11-02", start, now)).toEqual({ ok: true });
   });
 
-  it("rejects future weeks", () => {
-    expect(checkPayableWeek("2026-11-30", start, now)).toEqual({
+  it("accepts up to 6 weeks ahead (7 weeks with this one)", () => {
+    expect(checkPayableWeek("2026-11-30", start, now)).toEqual({ ok: true });
+    expect(checkPayableWeek("2027-01-04", start, now)).toEqual({ ok: true });
+  });
+
+  it("rejects weeks further ahead", () => {
+    expect(checkPayableWeek("2027-01-11", start, now)).toEqual({
       ok: false,
       reason: "future_week",
     });
+  });
+
+  it("lists the upcoming weeks that may be paid ahead", () => {
+    expect(upcomingWeeks(undefined, now)).toEqual([
+      "2026-11-30",
+      "2026-12-07",
+      "2026-12-14",
+      "2026-12-21",
+      "2026-12-28",
+      "2027-01-04",
+    ]);
   });
 
   it("rejects non-Monday, invalid and pre-start dates", () => {

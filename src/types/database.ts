@@ -65,6 +65,8 @@ export type SettingsRow = {
   account_name: string | null;
   account_no: string | null;
   qr_path: string | null;
+  /** Fixed-amount bank QR paths keyed by the number of weeks ("1" … "7"). */
+  qr_by_weeks: Record<string, string>;
   note: string | null;
   updated_at: string;
   updated_by: string | null;

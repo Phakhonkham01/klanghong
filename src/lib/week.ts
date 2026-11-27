@@ -117,6 +117,17 @@ export function isFutureWeek(weekStart: IsoDate, now: Date = new Date()): boolea
   return weekStart > currentWeekStart(now);
 }
 
+/** One slip covers at most this many weeks. */
+export const MAX_WEEKS_PER_SLIP = 7;
+/** Weeks that may be paid ahead of the current one (DB trigger allows the same). */
+export const PREPAY_WEEKS_AHEAD = MAX_WEEKS_PER_SLIP - 1;
+
+/** The next `n` Mondays after the current week. */
+export function upcomingWeeks(n: number = PREPAY_WEEKS_AHEAD, now: Date = new Date()): IsoDate[] {
+  const current = currentWeekStart(now);
+  return Array.from({ length: n }, (_, i) => addDays(current, 7 * (i + 1)));
+}
+
 export type PayableCheck =
   | { ok: true }
   | { ok: false; reason: "invalid_date" | "not_monday" | "before_start" | "future_week" };
@@ -130,7 +141,9 @@ export function checkPayableWeek(
   if (!isIsoDate(weekStart)) return { ok: false, reason: "invalid_date" };
   if (!isMonday(weekStart)) return { ok: false, reason: "not_monday" };
   if (weekStart < weekStartOf(startDate)) return { ok: false, reason: "before_start" };
-  if (isFutureWeek(weekStart, now)) return { ok: false, reason: "future_week" };
+  if (weekStart > addDays(currentWeekStart(now), 7 * PREPAY_WEEKS_AHEAD)) {
+    return { ok: false, reason: "future_week" };
+  }
   return { ok: true };
 }
 

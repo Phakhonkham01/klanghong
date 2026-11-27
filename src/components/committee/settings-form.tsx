@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImageUp, Info, Landmark, QrCode, Trash2, Wallet } from "lucide-react";
+import { Info, Landmark, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { SectionCard } from "@/components/committee/bits";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ import { isIsoDate, weekStartOf } from "@/lib/week";
 
 const t = lo.committee.settings;
 const field = "h-11 rounded-2xl border-2 px-4 text-base md:text-sm";
-const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
 
 function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   return (
@@ -31,16 +30,17 @@ function Field({ id, label, children }: { id: string; label: string; children: R
   );
 }
 
-export function SettingsForm({ initial }: { initial: SettingsView }) {
+export function SettingsForm({
+  initial,
+  qrSection,
+}: {
+  initial: SettingsView;
+  qrSection?: React.ReactNode;
+}) {
   const [amount, setAmount] = useState(String(initial.weeklyAmount));
   const [startDate, setStartDate] = useState(initial.startDate);
   const router = useRouter();
-  const [qr, setQr] = useState<File | null>(null);
-  const [removeQr, setRemoveQr] = useState(false);
   const [saving, setSaving] = useState(false);
-  const localQr = useMemo(() => (qr ? URL.createObjectURL(qr) : null), [qr]);
-  const qrUrl = localQr ?? (removeQr ? null : initial.qrUrl);
-  useEffect(() => () => void (localQr && URL.revokeObjectURL(localQr)), [localQr]);
 
   const amountChanged = parseKip(amount) !== initial.weeklyAmount;
 
@@ -52,16 +52,11 @@ export function SettingsForm({ initial }: { initial: SettingsView }) {
         const n = parseKip(amount);
         if (!n || n <= 0) return void toast.error(t.invalidAmount);
         const form = new FormData(e.currentTarget);
-        if (qr) form.set("qr", qr);
-        else form.delete("qr");
-        if (removeQr && !qr) form.set("removeQr", "1");
         setSaving(true);
         const r = await saveSettingsAction(form).catch(() => null);
         setSaving(false);
         if (!r || !r.ok) return void toast.error(r && !r.ok ? r.error : lo.errors.generic);
         toast.success(t.savedReal);
-        setQr(null);
-        setRemoveQr(false);
         router.refresh();
       }}
     >
@@ -141,51 +136,8 @@ export function SettingsForm({ initial }: { initial: SettingsView }) {
         </div>
       </SectionCard>
 
-      <SectionCard title={t.qr}>
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="grid size-36 place-items-center overflow-hidden rounded-2xl border-2 border-dashed text-muted-foreground">
-            {qrUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={qrUrl} alt={t.qr} className="size-full object-contain" />
-            ) : (
-              <QrCode className="size-16" strokeWidth={1.4} aria-hidden />
-            )}
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="inline-flex">
-              <span className="inline-flex h-10 press-3d cursor-pointer items-center gap-2 rounded-2xl border-2 border-tile-shade bg-tile px-4 text-sm font-semibold [--press-depth:3px] hover:bg-muted">
-                <ImageUp className="size-4" /> {t.qrUpload}
-              </span>
-              <input
-                type="file"
-                accept={ACCEPTED.join(",")}
-                className="sr-only"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f && !ACCEPTED.includes(f.type)) return void toast.error(lo.pay.invalidType);
-                  if (f) {
-                    setQr(f);
-                    setRemoveQr(false);
-                  }
-                }}
-              />
-            </label>
-            {qrUrl ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className="justify-start text-destructive"
-                onClick={() => {
-                  setQr(null);
-                  setRemoveQr(true);
-                }}
-              >
-                <Trash2 /> {t.qrRemove}
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </SectionCard>
+      {/* Fixed-amount QR codes (1–7 weeks) replace the old any-amount QR. */}
+      {qrSection}
 
       <SectionCard title={t.note}>
         <Textarea

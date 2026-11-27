@@ -2,7 +2,8 @@ import { PayFlow, type PayWeekOption } from "@/components/student/pay-flow";
 import { requireSession } from "@/lib/auth";
 import { getPayments, getSettings } from "@/lib/data/queries";
 import { lo } from "@/lib/i18n/lo";
-import { buildStudentWeeks, defaultPayWeek } from "@/lib/status";
+import { openWeeks } from "@/lib/status";
+import { MAX_WEEKS_PER_SLIP } from "@/lib/week";
 
 export const metadata = { title: lo.nav.pay };
 
@@ -18,28 +19,31 @@ export default async function Page({
     getSettings({ withQr: true }),
     getPayments({ studentId: userId }),
   ]);
-  const entries = buildStudentWeeks(settings.startDate, payments, now);
 
-  const options: PayWeekOption[] = entries
-    .filter((e) => e.isPayable)
-    .map((e) => ({ weekStart: e.weekStart, status: e.status, isCurrent: e.isCurrent }));
+  const options: PayWeekOption[] = openWeeks(settings.startDate, payments, now);
 
-  // Preselect the requested week if it is payable, else the oldest payable week.
+  // Weeks are paid in order: preselect from the oldest open week up to the requested one.
   const requested = typeof week === "string" ? week : undefined;
-  const initial = options.some((o) => o.weekStart === requested)
-    ? requested!
-    : defaultPayWeek(entries);
+  const upTo = Math.max(
+    0,
+    options.findIndex((o) => o.weekStart === requested),
+  );
 
   return (
     <PayFlow
       options={options}
-      initialWeeks={initial ? [initial] : []}
+      initialWeeks={options
+        .slice(0, Math.min(upTo + 1, MAX_WEEKS_PER_SLIP))
+        .map((o) => o.weekStart)}
       weeklyAmount={settings.weeklyAmount}
       bank={{
         name: settings.bankName,
         accountName: settings.accountName,
         accountNo: settings.accountNo,
         qrUrl: settings.qrUrl,
+        qrByWeeks: Object.fromEntries(
+          Object.entries(settings.qrByWeeks).map(([n, q]) => [n, q.url]),
+        ),
       }}
     />
   );

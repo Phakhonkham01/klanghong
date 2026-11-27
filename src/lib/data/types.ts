@@ -80,6 +80,8 @@ export interface SettingsView {
   qrPath: string | null;
   /** Short-lived signed URL for the QR image. */
   qrUrl: string | null;
+  /** Fixed-amount QR codes by number of weeks (1–7): storage path and signed URL. */
+  qrByWeeks: Record<number, { path: string; url: string | null }>;
   note: string;
 }
 

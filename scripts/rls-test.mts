@@ -145,12 +145,15 @@ async function main() {
 
   const future = await b.client.from("payments").insert({
     student_id: b.id,
-    week_start: vientianeMonday(1),
+    week_start: vientianeMonday(7), // pay-ahead limit is 6 weeks (0009)
     amount: 1,
     slip_path: `${b.id}/x.png`,
     slip_sha256: fakeHash(),
   });
-  check("future week rejected", !!future.error && /future_week/.test(future.error.message));
+  check(
+    "week beyond the pay-ahead limit rejected",
+    !!future.error && /future_week/.test(future.error.message),
+  );
 
   // --- reads ---
   const bSees = await b.client.from("payments").select("id").eq("id", payId);

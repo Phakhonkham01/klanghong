@@ -1,3 +1,4 @@
+import { AmountQrManager } from "@/components/committee/amount-qr-manager";
 import { SettingsForm } from "@/components/committee/settings-form";
 import { requireSession } from "@/lib/auth";
 import { getSettings } from "@/lib/data/queries";
@@ -7,5 +8,6 @@ export const metadata = { title: lo.nav.settings };
 
 export default async function Page() {
   await requireSession("committee");
-  return <SettingsForm initial={await getSettings({ withQr: true })} />;
+  const settings = await getSettings({ withQr: true });
+  return <SettingsForm initial={settings} qrSection={<AmountQrManager settings={settings} />} />;
 }

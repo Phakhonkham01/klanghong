@@ -8,8 +8,8 @@ import { readImageUpload } from "@/lib/files";
 import { lo } from "@/lib/i18n/lo";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { PaymentStatus } from "@/lib/status";
-import { checkPayableWeek } from "@/lib/week";
+import { isInPayOrder, openWeeks, type PaymentStatus } from "@/lib/status";
+import { MAX_WEEKS_PER_SLIP, checkPayableWeek } from "@/lib/week";
 
 const MAX_WEEKS = 26;
 const STATUSES: PaymentStatus[] = ["pending", "approved", "rejected"];
@@ -50,12 +50,22 @@ export async function submitPaymentAction(form: FormData): Promise<ActionResult>
 
   const weeks = [...new Set(form.getAll("weeks").map(String))].sort();
   if (!weeks.length) return { ok: false, error: lo.errors.noWeeks };
-  if (weeks.length > MAX_WEEKS) return { ok: false, error: lo.errors.weekNotPayable };
+  if (weeks.length > MAX_WEEKS_PER_SLIP) return { ok: false, error: lo.errors.weekNotPayable };
 
-  const { data: settings } = await supabase.from("settings").select("start_date").single();
+  const [{ data: settings }, { data: mine }] = await Promise.all([
+    supabase.from("settings").select("start_date").single(),
+    supabase
+      .from("payments")
+      .select("week_start, status, amount, created_at")
+      .eq("student_id", userId),
+  ]);
   if (!settings) return { ok: false, error: lo.errors.generic };
   if (weeks.some((w) => !checkPayableWeek(w, settings.start_date).ok)) {
     return { ok: false, error: lo.errors.weekNotPayable };
+  }
+  // Weeks are paid in order: the slip must cover the oldest open weeks, none skipped.
+  if (!isInPayOrder(weeks, openWeeks(settings.start_date, mine ?? []))) {
+    return { ok: false, error: lo.errors.payInOrder };
   }
 
   const file = await readImageUpload(form.get("slip"));

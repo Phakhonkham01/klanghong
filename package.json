@@ -22,6 +22,7 @@
     "test:e2e": "tsx --env-file=.env.local scripts/e2e-actions.mts",
     "test:otp": "tsx --env-file=.env.local scripts/otp-e2e.mts",
     "test:lock": "tsx --env-file=.env.local scripts/login-lock-e2e.mts",
+    "test:prepay": "tsx --env-file=.env.local scripts/prepay-e2e.mts",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",

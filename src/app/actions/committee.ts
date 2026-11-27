@@ -8,7 +8,7 @@ import { readImageUpload } from "@/lib/files";
 import { lo } from "@/lib/i18n/lo";
 import { parseKip } from "@/lib/money";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { isIsoDate, todayInTz } from "@/lib/week";
+import { MAX_WEEKS_PER_SLIP, isIsoDate, todayInTz } from "@/lib/week";
 import type { SettingsRow } from "@/types/database";
 
 const e = lo.committee.expenses;
@@ -130,5 +130,51 @@ export async function saveSettingsAction(form: FormData): Promise<ActionResult> 
 
   for (const p of ["/committee/settings", "/pay", "/dashboard", "/committee", "/committee/audit"])
     revalidatePath(p);
+  return { ok: true };
+}
+
+/**
+ * Upload (or remove) the fixed-amount bank QR for paying `weeks` weeks at once (1–7).
+ * Form fields: weeks, qr (image) or remove=1.
+ */
+export async function saveWeekQrAction(form: FormData): Promise<ActionResult> {
+  await requireSession("committee");
+  const weeks = Number(form.get("weeks"));
+  if (!Number.isInteger(weeks) || weeks < 1 || weeks > MAX_WEEKS_PER_SLIP) {
+    return { ok: false, error: lo.errors.generic };
+  }
+  const supabase = await createSupabaseServerClient();
+  const { data: current, error: readErr } = await supabase
+    .from("settings")
+    .select("qr_by_weeks")
+    .eq("id", 1)
+    .single();
+  if (readErr || !current) return { ok: false, error: s.qrNeedsMigration };
+  const map = { ...((current.qr_by_weeks ?? {}) as Record<string, string>) };
+  const old = map[String(weeks)] ?? null;
+
+  if (form.get("remove") === "1") {
+    delete map[String(weeks)];
+  } else {
+    const file = await readImageUpload(form.get("qr"));
+    if (!file.ok) {
+      return {
+        ok: false,
+        error: file.reason === "too_large" ? lo.errors.slipTooLarge : lo.errors.slipNotImage,
+      };
+    }
+    const path = `qr/weeks-${weeks}/${randomUUID()}.${file.kind.ext}`;
+    const { error } = await supabase.storage
+      .from("settings")
+      .upload(path, file.bytes, { contentType: file.kind.mime });
+    if (error) return { ok: false, error: lo.errors.uploadFailed };
+    map[String(weeks)] = path;
+  }
+
+  const { error } = await supabase.from("settings").update({ qr_by_weeks: map }).eq("id", 1);
+  if (error) return { ok: false, error: lo.errors.generic };
+  if (old && old !== map[String(weeks)]) await supabase.storage.from("settings").remove([old]);
+
+  for (const p of ["/committee/settings", "/pay"]) revalidatePath(p);
   return { ok: true };
 }

@@ -6,9 +6,12 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CalendarCheck,
+  Check,
   CircleCheck,
   Copy,
   ImageUp,
+  Lock,
+  Plus,
   Landmark,
   QrCode,
   X,
@@ -18,18 +21,32 @@ import { toast } from "sonner";
 import { submitPaymentAction } from "@/app/actions/payments";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatWeekRange } from "@/lib/format";
+import { formatMonthLo, formatWeekRange } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import { formatKip } from "@/lib/money";
 import type { WeekStatus } from "@/lib/status";
-import type { IsoDate } from "@/lib/week";
+import { MAX_WEEKS_PER_SLIP, type IsoDate } from "@/lib/week";
 import { cn } from "@/lib/utils";
 import { PiggyTip } from "./piggy-mascot";
 import { dotClass } from "./status-style";
 
-export type PayWeekOption = { weekStart: IsoDate; status: WeekStatus; isCurrent: boolean };
+export type PayWeekOption = {
+  weekStart: IsoDate;
+  status: WeekStatus;
+  isCurrent: boolean;
+  /** An upcoming week paid in advance. */
+  ahead?: boolean;
+};
 
-type Bank = { name: string; accountName: string; accountNo: string; qrUrl: string | null };
+type Bank = {
+  name: string;
+  accountName: string;
+  accountNo: string;
+  /** General QR (any amount). */
+  qrUrl: string | null;
+  /** Fixed-amount QR for paying N weeks at once (signed URLs). */
+  qrByWeeks: Record<number, string | null>;
+};
 
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 15 * 1024 * 1024; // before compression
@@ -49,55 +66,122 @@ async function compressSlip(file: File): Promise<File> {
     return file;
   }
 }
+/** Options grouped by the month of their Monday, in order. */
+function byMonth(options: PayWeekOption[]): [string, PayWeekOption[]][] {
+  const groups = new Map<string, PayWeekOption[]>();
+  for (const o of options) {
+    const m = o.weekStart.slice(0, 7);
+    groups.set(m, [...(groups.get(m) ?? []), o]);
+  }
+  return [...groups];
+}
+
 const STEP_ICONS: LucideIcon[] = [CalendarCheck, Landmark, ImageUp];
 
+/**
+ * A week as a chunky, obviously tappable button. Unpicked: white with a "+" badge (the next week
+ * in order glows blue). Picked: solid green with an "x" to take it back. Past the 7-week limit:
+ * faded with a lock.
+ */
 function WeekTile({
   option,
   pressed,
+  next,
+  disabled,
   onClick,
 }: {
   option: PayWeekOption;
   pressed: boolean;
+  /** The next week to pick in pay order. */
+  next?: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
+  const BadgeIcon = pressed ? X : disabled ? Lock : Plus;
   return (
-    <Button
+    <button
       type="button"
-      variant="tile"
-      className="h-auto min-h-11 gap-2 px-3 py-2 text-sm"
       aria-pressed={pressed}
+      disabled={disabled}
       onClick={onClick}
+      className={cn(
+        "flex min-h-12 press-3d cursor-pointer items-center gap-2 rounded-2xl border-2 py-2 pr-2 pl-3 text-sm font-bold transition-colors outline-none [--press-depth:4px] focus-visible:ring-4 focus-visible:ring-ring/50",
+        pressed
+          ? "border-primary bg-primary text-white [--press-shade:var(--brand-shade)] hover:brightness-105"
+          : next
+            ? "border-sky bg-sky/10 text-foreground [--press-shade:var(--sky-shade)] hover:bg-sky/15"
+            : "border-tile-shade bg-tile text-foreground [--press-shade:var(--tile-shade)] hover:bg-muted",
+        disabled && "cursor-not-allowed opacity-45 active:transform-none",
+      )}
     >
-      <span className={cn("size-2.5 rounded-full", dotClass[option.status])} aria-hidden />
-      {formatWeekRange(option.weekStart)}
+      <span
+        className={cn(
+          "size-2.5 shrink-0 rounded-full",
+          pressed && "ring-2 ring-white",
+          option.ahead ? "bg-sky" : dotClass[option.status],
+        )}
+        aria-hidden
+      />
+      <span className="whitespace-nowrap">{formatWeekRange(option.weekStart)}</span>
       <span className="sr-only">{lo.status[option.status]}</span>
-    </Button>
+      <span
+        aria-hidden
+        className={cn(
+          "ml-1 grid size-7 shrink-0 place-items-center rounded-full",
+          pressed
+            ? "bg-white/25 text-white"
+            : next
+              ? "animate-pulse bg-sky text-white"
+              : "bg-muted text-muted-foreground",
+        )}
+      >
+        <BadgeIcon className="size-4" strokeWidth={3} />
+      </span>
+    </button>
   );
 }
 
-function CopyRow({ label, value }: { label: string; value: string }) {
+/**
+ * Bank details in one compact row: bank and account name on top, the account number below,
+ * and a single copy button for the number (the only part people type into their bank app).
+ */
+function BankRow({ bank }: { bank: Bank }) {
+  const [copied, setCopied] = useState(false);
   return (
-    <div className="flex items-center justify-between gap-3 py-2.5">
-      <div className="min-w-0">
-        <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-        <p className="truncate money font-bold">{value}</p>
+    <div className="flex items-center gap-3 rounded-2xl border-2 p-3">
+      <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-sky/15 text-sky">
+        <Landmark className="size-6" strokeWidth={2.4} aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-semibold text-muted-foreground">
+          <span className="font-bold text-foreground">{bank.name || lo.pay.bank}</span>
+          {bank.accountName ? ` · ${bank.accountName}` : null}
+        </p>
+        <p className="truncate money text-lg leading-tight font-bold tracking-wide">
+          {bank.accountNo || "—"}
+        </p>
       </div>
-      <Button
-        type="button"
-        variant="tile"
-        size="icon-lg"
-        aria-label={`${lo.common.copy} ${label}`}
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(value.replace(/\s/g, ""));
-            toast.success(lo.common.copied);
-          } catch {
-            toast.error(lo.errors.generic);
-          }
-        }}
-      >
-        <Copy className="size-4" />
-      </Button>
+      {bank.accountNo ? (
+        <Button
+          type="button"
+          variant="tile"
+          className={cn("h-10 shrink-0 gap-1.5 px-3 text-xs", copied && "text-primary")}
+          aria-label={`${lo.common.copy} ${lo.pay.accountNo}`}
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(bank.accountNo.replace(/\s/g, ""));
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+              toast.success(lo.common.copied);
+            } catch {
+              toast.error(lo.errors.generic);
+            }
+          }}
+        >
+          {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+          {copied ? lo.common.copied : lo.common.copy}
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -130,8 +214,23 @@ export function PayFlow({
   const ordered = options.filter((o) => selected.includes(o.weekStart));
   const progress = done ? 100 : (step / 3) * 100 + (step === 0 && selected.length ? 12 : 0);
 
-  const toggle = (week: IsoDate) =>
-    setSelected((s) => (s.includes(week) ? s.filter((w) => w !== week) : [...s, week]));
+  const full = selected.length >= MAX_WEEKS_PER_SLIP;
+  // Weeks are paid in order (options are oldest first): tapping a week selects every week up
+  // to it; tapping a selected week drops it and every later one.
+  const toggle = (week: IsoDate) => {
+    const i = options.findIndex((o) => o.weekStart === week);
+    if (i < 0) return;
+    setSelected(
+      options
+        .slice(0, selected.includes(week) ? i : Math.min(i + 1, MAX_WEEKS_PER_SLIP))
+        .map((o) => o.weekStart),
+    );
+  };
+  /** Weeks beyond the 7-week limit cannot be reached in one slip. */
+  const beyondLimit = (week: IsoDate) =>
+    options.findIndex((o) => o.weekStart === week) >= MAX_WEEKS_PER_SLIP;
+  // The QR made for exactly this amount, else the general one.
+  const amountQr = bank.qrByWeeks[selected.length] ?? null;
 
   const canContinue = step === 0 ? selected.length > 0 : step === 1 ? true : file !== null;
 
@@ -245,27 +344,58 @@ export function PayFlow({
                 <span className="money text-lg font-bold text-foreground">{formatKip(total)}</span>
               </p>
 
-              {/* Word bank: picked tiles leave an empty slot behind. */}
-              <div className="mt-8 flex flex-wrap justify-center gap-2">
-                {options.map((o) =>
-                  selected.includes(o.weekStart) ? (
-                    <span
-                      key={o.weekStart}
-                      aria-hidden
-                      className="min-h-11 rounded-2xl bg-muted px-3 py-2 text-sm text-transparent select-none"
-                    >
-                      ● {formatWeekRange(o.weekStart)}
-                    </span>
-                  ) : (
-                    <WeekTile
-                      key={o.weekStart}
-                      option={o}
-                      pressed={false}
-                      onClick={() => toggle(o.weekStart)}
-                    />
-                  ),
+              <p
+                className={cn(
+                  "mt-1 text-xs font-semibold text-muted-foreground",
+                  full && "text-status-pending",
                 )}
-              </div>
+              >
+                {lo.pay.maxWeeks(selected.length, MAX_WEEKS_PER_SLIP)}
+              </p>
+
+              {/* Legend for the blue dot. */}
+              {options.some((o) => o.ahead) ? (
+                <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <span className="size-2 rounded-full bg-sky" aria-hidden /> {lo.pay.payAhead}
+                </p>
+              ) : null}
+
+              {/* Word bank, one group per month: picked tiles leave an empty slot behind. */}
+              {byMonth(options).map(([month, group]) =>
+                group.length ? (
+                  <div key={month} className="mt-5">
+                    <div className="mb-2.5 flex items-center gap-3" aria-hidden>
+                      <span className="h-0.5 flex-1 rounded-full bg-border" />
+                      <span className="rounded-full border-2 px-3 py-0.5 text-xs font-bold text-muted-foreground">
+                        {formatMonthLo(`${month}-01`)}
+                      </span>
+                      <span className="h-0.5 flex-1 rounded-full bg-border" />
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {group.map((o) =>
+                        selected.includes(o.weekStart) ? (
+                          <span
+                            key={o.weekStart}
+                            aria-hidden
+                            className="flex min-h-12 items-center rounded-2xl border-2 border-dashed border-border bg-muted/50 py-2 pr-11 pl-3 text-sm font-bold whitespace-nowrap text-transparent select-none"
+                          >
+                            ● {formatWeekRange(o.weekStart)}
+                          </span>
+                        ) : (
+                          <WeekTile
+                            key={o.weekStart}
+                            option={o}
+                            pressed={false}
+                            next={o.weekStart === options[selected.length]?.weekStart}
+                            disabled={beyondLimit(o.weekStart)}
+                            onClick={() => toggle(o.weekStart)}
+                          />
+                        ),
+                      )}
+                    </div>
+                  </div>
+                ) : null,
+              )}
             </section>
           ) : null}
 
@@ -273,23 +403,30 @@ export function PayFlow({
             <section>
               <h1 className="mt-2 text-2xl font-bold">{lo.pay.transferTitle}</h1>
               <p className="mt-1 money text-3xl font-bold text-primary">{formatKip(total)}</p>
-              <div className="mt-5 divide-y-2 rounded-2xl border-2 px-4">
-                <CopyRow label={lo.pay.bank} value={bank.name} />
-                <CopyRow label={lo.pay.accountName} value={bank.accountName} />
-                <CopyRow label={lo.pay.accountNo} value={bank.accountNo} />
+              <div className="mt-4">
+                <BankRow bank={bank} />
               </div>
               <div className="mt-5 grid place-items-center rounded-2xl border-2 border-dashed p-6 text-center text-muted-foreground">
-                {bank.qrUrl ? (
+                {amountQr ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={bank.qrUrl}
+                    src={amountQr}
                     alt={lo.pay.qrHint}
                     className="h-auto max-h-[60dvh] w-full max-w-72 rounded-xl object-contain"
                   />
                 ) : (
                   <QrCode className="size-24" strokeWidth={1.4} aria-hidden />
                 )}
-                <p className="mt-2 text-sm font-semibold">{lo.pay.qrHint}</p>
+                {amountQr ? (
+                  <p className="mt-2 text-sm font-semibold">
+                    {lo.pay.qrHintAmount(formatKip(total))}
+                  </p>
+                ) : (
+                  // No QR for this amount yet: transfer to the account number above.
+                  <p className="mt-2 text-sm font-bold text-status-pending">
+                    {lo.pay.noAmountQr(formatKip(total))}
+                  </p>
+                )}
               </div>
               <div className="mt-4">
                 <PiggyTip title={lo.pay.tipTitle} text={lo.pay.tipText} />

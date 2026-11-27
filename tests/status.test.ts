@@ -4,6 +4,8 @@ import {
   computeStreak,
   defaultPayWeek,
   deriveWeekStatus,
+  isInPayOrder,
+  openWeeks,
   summarizeOutstanding,
   type PaymentLike,
 } from "@/lib/status";
@@ -159,5 +161,37 @@ describe("computeStreak", () => {
 
   it("is zero when the last past week is not paid", () => {
     expect(computeStreak(buildStudentWeeks("2026-11-16", [], NOW))).toBe(0);
+  });
+});
+
+describe("openWeeks / isInPayOrder", () => {
+  // Start 2026-11-02; week of 11-02 paid, 11-09 pending, 11-16 rejected, 11-23 is this week.
+  const payments = [
+    pay("2026-11-02", "approved"),
+    pay("2026-11-09", "pending"),
+    pay("2026-11-16", "rejected"),
+    pay("2026-12-07", "pending"), // a week already paid ahead
+  ];
+  const open = openWeeks("2026-11-02", payments, NOW);
+
+  it("lists owed weeks oldest first, then weeks ahead without a live payment", () => {
+    expect(open.map((o) => o.weekStart)).toEqual([
+      "2026-11-16",
+      "2026-11-23",
+      "2026-11-30",
+      "2026-12-14",
+      "2026-12-21",
+      "2026-12-28",
+      "2027-01-04",
+    ]);
+    expect(open.filter((o) => o.ahead)).toHaveLength(5);
+  });
+
+  it("accepts only the first N open weeks", () => {
+    expect(isInPayOrder(["2026-11-16"], open)).toBe(true);
+    expect(isInPayOrder(["2026-11-30", "2026-11-16", "2026-11-23"], open)).toBe(true);
+    expect(isInPayOrder(["2026-11-23"], open)).toBe(false); // skips the rejected week
+    expect(isInPayOrder(["2026-11-16", "2026-11-30"], open)).toBe(false); // skips this week
+    expect(isInPayOrder([], open)).toBe(false);
   });
 });

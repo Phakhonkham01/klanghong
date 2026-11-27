@@ -109,12 +109,15 @@ function MonthDivider({ weekStart }: { weekStart: IsoDate }) {
 export function WeekPath({
   entries,
   today,
+  ahead = {},
   upcoming = 2,
   max = 8,
 }: {
   entries: WeekEntry[];
   /** Today in the app timezone: fills the link to next week and sets how far ahead to show. */
   today?: IsoDate;
+  /** Upcoming weeks already paid ahead (approved) or waiting for review. */
+  ahead?: Partial<Record<IsoDate, "paid" | "pending">>;
   upcoming?: number;
   max?: number;
 }) {
@@ -122,7 +125,10 @@ export function WeekPath({
   const last = recent.at(-1)?.weekStart;
   const future: IsoDate[] = [];
   if (last) {
-    const until = today ? endOfNextMonth(today) : null;
+    // Through next month, and at least as far as the last week paid ahead.
+    const lastAhead = Object.keys(ahead).sort().at(-1);
+    const nextMonthEnd = today ? endOfNextMonth(today) : null;
+    const until = nextMonthEnd && lastAhead && lastAhead > nextMonthEnd ? lastAhead : nextMonthEnd;
     for (
       let w = addDays(last, 7);
       until ? w <= until : future.length < upcoming;
@@ -133,12 +139,11 @@ export function WeekPath({
   }
   const nodes: PathNode[] = [
     ...recent.map((entry) => ({ weekStart: entry.weekStart, kind: entry.status, entry })),
-    ...future.map((weekStart) => ({ weekStart, kind: "future" as const })),
+    ...future.map((weekStart) => ({ weekStart, kind: ahead[weekStart] ?? ("future" as const) })),
   ];
   // Days gone in this week (Mon = 1 … Sun = 7) fill the link from this week to the next.
   const dow = today ? isoWeekday(today) : 0;
   const links: PathLink[] = nodes.slice(1).map((next, i) => {
-    if (next.kind !== "future") return { from: i, to: i + 1, kind: "done" };
     if (today && nodes[i]!.entry?.isCurrent) {
       return {
         from: i,
@@ -147,7 +152,7 @@ export function WeekPath({
         fraction: dow / 7,
       };
     }
-    return { from: i, to: i + 1, kind: "future" };
+    return { from: i, to: i + 1, kind: next.kind === "future" ? "future" : "done" };
   });
 
   return (

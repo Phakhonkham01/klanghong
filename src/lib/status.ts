@@ -1,4 +1,11 @@
-import { currentWeekStart, isPastDeadline, listWeeks, type IsoDate } from "@/lib/week";
+import {
+  currentWeekStart,
+  isPastDeadline,
+  listWeeks,
+  upcomingWeeks,
+  weekStartOf,
+  type IsoDate,
+} from "@/lib/week";
 
 export type PaymentStatus = "pending" | "approved" | "rejected";
 export type WeekStatus = "paid" | "pending" | "rejected" | "unpaid" | "overdue";
@@ -106,6 +113,40 @@ export function summarizeOutstanding(
 }
 
 /** Default week on the pay page: oldest payable week (overdue/rejected first), else null. */
+export type OpenWeek = {
+  weekStart: IsoDate;
+  status: WeekStatus;
+  isCurrent: boolean;
+  /** An upcoming week paid in advance. */
+  ahead?: boolean;
+};
+
+/**
+ * Weeks a student can still pay, in the order they must be paid: owed weeks oldest first
+ * (overdue, rejected, this week), then upcoming weeks with no live payment yet. A payment must
+ * cover the first N of these, so nobody skips a week.
+ */
+export function openWeeks<P extends PaymentLike>(
+  startDate: IsoDate,
+  payments: P[],
+  now: Date = new Date(),
+): OpenWeek[] {
+  const owed: OpenWeek[] = buildStudentWeeks(startDate, payments, now)
+    .filter((e) => e.isPayable)
+    .map((e) => ({ weekStart: e.weekStart, status: e.status, isCurrent: e.isCurrent }));
+  const taken = new Set(payments.filter((p) => p.status !== "rejected").map((p) => p.week_start));
+  const ahead: OpenWeek[] = upcomingWeeks(undefined, now)
+    .filter((w) => w >= weekStartOf(startDate) && !taken.has(w))
+    .map((w) => ({ weekStart: w, status: "unpaid", isCurrent: false, ahead: true }));
+  return [...owed, ...ahead];
+}
+
+/** True when `weeks` (any order) are exactly the first weeks of `open`. */
+export function isInPayOrder(weeks: IsoDate[], open: OpenWeek[]): boolean {
+  const sorted = [...new Set(weeks)].sort();
+  return sorted.length > 0 && sorted.every((w, i) => open[i]?.weekStart === w);
+}
+
 export function defaultPayWeek(entries: WeekEntry[]): IsoDate | null {
   return entries.find((e) => e.isPayable)?.weekStart ?? null;
 }

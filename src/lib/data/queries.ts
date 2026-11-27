@@ -23,11 +23,25 @@ export async function getSettings({ withQr = false } = {}): Promise<SettingsView
   const { data, error } = await supabase.from("settings").select("*").eq("id", 1).single();
   if (error || !data) throw new Error(`settings: ${error?.message ?? "missing"}`);
   let qrUrl: string | null = null;
-  if (withQr && data.qr_path) {
-    const { data: signed } = await supabase.storage
-      .from("settings")
-      .createSignedUrl(data.qr_path, 60 * 60);
-    qrUrl = signed?.signedUrl ?? null;
+  // Column added by migration 0009; treat it as empty until that runs.
+  const byWeeks = (data.qr_by_weeks ?? {}) as Record<string, string>;
+  const weekPaths = Object.entries(byWeeks).filter(
+    ([k, v]) => /^[1-7]$/.test(k) && typeof v === "string" && v,
+  );
+  const qrByWeeks: SettingsView["qrByWeeks"] = {};
+  if (withQr) {
+    const paths = [...(data.qr_path ? [data.qr_path] : []), ...weekPaths.map(([, v]) => v)];
+    const urls = new Map<string, string>();
+    if (paths.length) {
+      const { data: signed } = await supabase.storage
+        .from("settings")
+        .createSignedUrls(paths, 60 * 60);
+      for (const x of signed ?? []) if (x.path && x.signedUrl) urls.set(x.path, x.signedUrl);
+    }
+    qrUrl = data.qr_path ? (urls.get(data.qr_path) ?? null) : null;
+    for (const [k, v] of weekPaths) qrByWeeks[Number(k)] = { path: v, url: urls.get(v) ?? null };
+  } else {
+    for (const [k, v] of weekPaths) qrByWeeks[Number(k)] = { path: v, url: null };
   }
   return {
     weeklyAmount: Number(data.weekly_amount),
@@ -37,6 +51,7 @@ export async function getSettings({ withQr = false } = {}): Promise<SettingsView
     accountNo: data.account_no ?? "",
     qrPath: data.qr_path,
     qrUrl,
+    qrByWeeks,
     note: data.note ?? "",
   };
 }
