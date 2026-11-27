@@ -10,6 +10,8 @@ export interface PaymentLike {
   amount: number;
   created_at: string;
   reject_reason?: string | null;
+  /** How it was paid (transfer slip or cash to the committee), when known. */
+  source?: "transfer" | "cash";
 }
 
 export interface WeekEntry<P extends PaymentLike = PaymentLike> {

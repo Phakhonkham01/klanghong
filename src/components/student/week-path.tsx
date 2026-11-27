@@ -1,6 +1,5 @@
 import { Fragment } from "react";
 import Link from "next/link";
-import { PiggyBank } from "lucide-react";
 import { formatDateLo, formatMonthLo } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import type { WeekEntry } from "@/lib/status";
@@ -8,6 +7,7 @@ import { addDays, isoWeekday, type IsoDate } from "@/lib/week";
 import { cn } from "@/lib/utils";
 import { FocusCurrentWeek } from "./focus-current-week";
 import { PathLinks, type PathLink } from "./path-links";
+import { PiggyMascot } from "./piggy-mascot";
 import { pathNodeStyle, type NodeKind } from "./status-style";
 
 const CURRENT_ID = "current-week";
@@ -17,7 +17,7 @@ const ZIGZAG = [0, -56, -84, -56, 0, 56, 84, 56];
 
 type PathNode = { weekStart: IsoDate; kind: NodeKind; entry?: WeekEntry };
 
-function Node({ node, offset, decor }: { node: PathNode; offset: number; decor?: boolean }) {
+function Node({ node, offset }: { node: PathNode; offset: number }) {
   const { className, icon: Icon } = pathNodeStyle[node.kind];
   const isCurrent = node.entry?.isCurrent ?? false;
   const payable = node.entry?.isPayable ?? false;
@@ -40,28 +40,12 @@ function Node({ node, offset, decor }: { node: PathNode; offset: number; decor?:
   return (
     <li
       id={isCurrent ? CURRENT_ID : undefined}
-      className={cn(
-        "relative z-10 flex scroll-mt-48 flex-col items-center",
-        isCurrent && payable && "mt-10",
-      )}
+      className={cn("relative z-10 flex scroll-mt-48 flex-col items-center")}
       style={{ transform: `translateX(${offset}px)` }}
     >
-      {decor ? (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute top-1 left-full ml-14 grid size-24 place-items-center rounded-full bg-accent"
-        >
-          <PiggyBank className="size-14 text-primary" strokeWidth={1.8} />
-        </span>
-      ) : null}
-      {isCurrent && payable ? (
-        <span className="absolute -top-11 left-1/2 z-10 animate-bob rounded-xl border-2 border-tile-shade bg-tile px-3 py-1 text-sm font-bold whitespace-nowrap text-primary shadow-sm after:absolute after:top-full after:left-1/2 after:-ml-2 after:border-8 after:border-transparent after:border-t-tile-shade">
-          {lo.dashboard.start}
-        </span>
-      ) : null}
       <span
         className={cn(
-          "rounded-full p-1.5",
+          "relative rounded-full p-1.5",
           isCurrent && "ring-[6px] ring-primary/25 ring-inset",
           isCurrent && node.kind !== "unpaid" && "ring-sky/30",
         )}
@@ -79,6 +63,9 @@ function Node({ node, offset, decor }: { node: PathNode; offset: number; decor?:
             {circle}
           </span>
         )}
+        {isCurrent && node.entry ? (
+          <PiggyMascot entry={node.entry} side={offset < 0 ? "right" : "left"} />
+        ) : null}
       </span>
       <span
         className={cn(
@@ -148,16 +135,6 @@ export function WeekPath({
     ...recent.map((entry) => ({ weekStart: entry.weekStart, kind: entry.status, entry })),
     ...future.map((weekStart) => ({ weekStart, kind: "future" as const })),
   ];
-  // Decorate the left-swinging node closest to (at or before) the current week.
-  const currentIndex = recent.length - 1;
-  let decorIndex = -1;
-  for (let i = currentIndex; i >= 0; i--) {
-    if (ZIGZAG[i % ZIGZAG.length]! < -40) {
-      decorIndex = i;
-      break;
-    }
-  }
-
   // Days gone in this week (Mon = 1 … Sun = 7) fill the link from this week to the next.
   const dow = today ? isoWeekday(today) : 0;
   const links: PathLink[] = nodes.slice(1).map((next, i) => {
@@ -182,7 +159,7 @@ export function WeekPath({
             {i === 0 || monthOf(node.weekStart) !== monthOf(nodes[i - 1]!.weekStart) ? (
               <MonthDivider weekStart={node.weekStart} />
             ) : null}
-            <Node node={node} offset={ZIGZAG[i % ZIGZAG.length]!} decor={i === decorIndex} />
+            <Node node={node} offset={ZIGZAG[i % ZIGZAG.length]!} />
           </Fragment>
         ))}
       </ol>

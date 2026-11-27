@@ -6,21 +6,22 @@ import { WeekHero } from "@/components/student/week-hero";
 import { WeekPath } from "@/components/student/week-path";
 import { buttonVariants } from "@/components/ui/button";
 import { requireSession } from "@/lib/auth";
-import { getFundSummary, getPayments, getSettings } from "@/lib/data/queries";
+import { getClassWeekStats, getFundSummary, getPayments, getSettings } from "@/lib/data/queries";
 import { formatDateLo } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import { formatKip } from "@/lib/money";
 import { buildStudentWeeks, computeStreak, summarizeOutstanding } from "@/lib/status";
 import { cn } from "@/lib/utils";
-import { daysUntilDeadline, todayInTz } from "@/lib/week";
+import { currentWeekStart, daysUntilDeadline, todayInTz } from "@/lib/week";
 
 export default async function Page() {
   const { userId } = await requireSession();
   const now = new Date();
-  const [settings, payments, fund] = await Promise.all([
+  const [settings, payments, fund, classStats] = await Promise.all([
     getSettings(),
     getPayments({ studentId: userId }),
     getFundSummary(),
+    getClassWeekStats(currentWeekStart(now)),
   ]);
   const entries = buildStudentWeeks(settings.startDate, payments, now);
   const current = entries.at(-1);
@@ -44,6 +45,7 @@ export default async function Page() {
             entry={current}
             amount={settings.weeklyAmount}
             daysLeft={daysUntilDeadline(now)}
+            classStats={classStats}
           />
         ) : null}
       </div>

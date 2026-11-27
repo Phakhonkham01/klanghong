@@ -83,6 +83,17 @@ export interface SettingsView {
   note: string;
 }
 
+/** Class-wide counts for one week (students see numbers only, never names). */
+export interface ClassWeekStats {
+  /** Active, approved members (the people expected to pay). */
+  total: number;
+  /** Members with an approved payment this week, split by how they paid. */
+  paidTransfer: number;
+  paidCash: number;
+  /** Members whose slip is sent but not yet reviewed. */
+  pending: number;
+}
+
 export interface FundSummary {
   totalApproved: number;
   totalExpenses: number;

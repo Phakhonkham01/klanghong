@@ -7,6 +7,7 @@ import type { AuditRow, PaymentRow, ProfileRow } from "@/types/database";
 import type {
   AuditAction,
   AuditView,
+  ClassWeekStats,
   ExpenseView,
   FundSummary,
   PaymentView,
@@ -215,4 +216,40 @@ export async function getAudit(limit = 100): Promise<AuditView[]> {
     detail: describeAudit(r, names),
     created_at: r.created_at,
   }));
+}
+
+/**
+ * How many members paid this week (cash / transfer) out of how many. Students cannot read other
+ * students' rows (RLS), so this counts with the service role and returns numbers only: call it
+ * after requireSession().
+ */
+export async function getClassWeekStats(weekStart: string): Promise<ClassWeekStats> {
+  const admin = createSupabaseAdminClient();
+  const [{ data: members, error: mErr }, { data: pays, error: pErr }] = await Promise.all([
+    admin.from("profiles").select("id").eq("is_active", true).eq("approval", "approved"),
+    admin
+      .from("payments")
+      .select("student_id, source, status")
+      .eq("week_start", weekStart)
+      .in("status", ["approved", "pending"]),
+  ]);
+  if (mErr) throw new Error(`members: ${mErr.message}`);
+  if (pErr) throw new Error(`payments: ${pErr.message}`);
+
+  const memberIds = new Set((members ?? []).map((m) => m.id));
+  const paid = new Map<string, "cash" | "transfer">();
+  const pending = new Set<string>();
+  for (const p of pays ?? []) {
+    if (!memberIds.has(p.student_id)) continue;
+    if (p.status === "approved") paid.set(p.student_id, p.source === "cash" ? "cash" : "transfer");
+    else pending.add(p.student_id);
+  }
+  for (const id of paid.keys()) pending.delete(id);
+  const paidCash = [...paid.values()].filter((s) => s === "cash").length;
+  return {
+    total: memberIds.size,
+    paidCash,
+    paidTransfer: paid.size - paidCash,
+    pending: pending.size,
+  };
 }
