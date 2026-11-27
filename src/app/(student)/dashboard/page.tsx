@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
+import { HideOnScroll } from "@/components/student/hide-on-scroll";
 import { StatBar } from "@/components/student/stat-bar";
 import { dotClass } from "@/components/student/status-style";
 import { WeekHero } from "@/components/student/week-hero";
@@ -47,7 +48,7 @@ export default async function Page() {
         fund={fund.balance}
       />
 
-      <div className="sticky top-16 z-20 -mx-1 bg-background/90 px-1 pb-2 backdrop-blur">
+      <HideOnScroll className="sticky top-16 z-20 -mx-1 bg-background/90 px-1 pb-2 backdrop-blur">
         {current ? (
           <WeekHero
             entry={current}
@@ -56,7 +57,7 @@ export default async function Page() {
             classStats={classStats}
           />
         ) : null}
-      </div>
+      </HideOnScroll>
 
       {outstanding.count > 0 ? (
         <section className="rounded-2xl border-2 border-status-rejected/30 bg-status-rejected-bg p-4">

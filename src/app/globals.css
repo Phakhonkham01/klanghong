@@ -253,6 +253,15 @@
   }
 }
 
+/* Swipeable chip rows: keep scrolling, hide the scrollbar. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* Mascot: gentle hop, and a sign that sways from its handle. */
 @keyframes hop {
   0%,

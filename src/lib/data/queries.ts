@@ -268,3 +268,23 @@ export async function getClassWeekStats(weekStart: string): Promise<ClassWeekSta
     pending: pending.size,
   };
 }
+
+/**
+ * Counts for the committee nav badges: transfer slips waiting for review and phone sign-ups
+ * waiting for approval. Uses the signed-in committee member's client (RLS lets them see all).
+ */
+export async function getCommitteeBadges(): Promise<Record<string, number>> {
+  const supabase = await createSupabaseServerClient();
+  const [slips, signups] = await Promise.all([
+    supabase.from("payments").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("approval", "pending")
+      .eq("is_active", true),
+  ]);
+  return {
+    "/committee/review": slips.count ?? 0,
+    "/committee/students": signups.count ?? 0,
+  };
+}

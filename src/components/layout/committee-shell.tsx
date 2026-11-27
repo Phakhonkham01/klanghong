@@ -8,12 +8,40 @@ import { signOutAction } from "@/app/(auth)/actions";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { lo } from "@/lib/i18n/lo";
 import { cn } from "@/lib/utils";
+import { QuickExpenseButton } from "@/components/committee/quick-expense";
 import { AppVersion } from "./app-version";
 import { Brand } from "./brand";
 import { committeeNav, isActive, type NavItem } from "./nav-items";
 import { ThemeToggle } from "./theme-toggle";
 
-function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+/** Things waiting for the committee, by page: slips to review, sign-ups to approve. */
+export type NavBadges = Partial<Record<string, number>>;
+
+/** Red count bubble; nothing when zero. */
+function CountBadge({ n, className }: { n?: number; className?: string }) {
+  if (!n) return null;
+  return (
+    <span
+      className={cn(
+        "grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1.5 money text-[11px] leading-none font-black text-white ring-2 ring-background",
+        className,
+      )}
+    >
+      {n > 99 ? "99+" : n}
+      <span className="sr-only"> {lo.nav.waiting}</span>
+    </span>
+  );
+}
+
+function NavList({
+  pathname,
+  badges = {},
+  onNavigate,
+}: {
+  pathname: string;
+  badges?: NavBadges;
+  onNavigate?: () => void;
+}) {
   return (
     <ul className="flex flex-col gap-1">
       {committeeNav.map((item) => {
@@ -32,6 +60,7 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
             >
               <Icon className="size-5" strokeWidth={active ? 2.6 : 2.2} aria-hidden />
               {item.label}
+              <CountBadge n={badges[item.href]} className="ml-auto" />
             </Link>
           </li>
         );
@@ -69,7 +98,15 @@ const MORE = committeeNav.slice(4);
 const tabClass =
   "flex h-14 flex-col items-center justify-center gap-0.5 rounded-xl border-2 border-transparent text-[11px] font-bold whitespace-nowrap text-muted-foreground";
 
-function BottomNav({ pathname, onMore }: { pathname: string; onMore: () => void }) {
+function BottomNav({
+  pathname,
+  badges = {},
+  onMore,
+}: {
+  pathname: string;
+  badges?: NavBadges;
+  onMore: () => void;
+}) {
   const moreActive = MORE.some((item) => isActive(pathname, item));
   return (
     <nav
@@ -87,7 +124,10 @@ function BottomNav({ pathname, onMore }: { pathname: string; onMore: () => void 
                 aria-current={active ? "page" : undefined}
                 className={cn(tabClass, active && "border-sky/50 bg-sky/10 text-sky")}
               >
-                <Icon className="size-6" strokeWidth={active ? 2.8 : 2.2} aria-hidden />
+                <span className="relative">
+                  <Icon className="size-6" strokeWidth={active ? 2.8 : 2.2} aria-hidden />
+                  <CountBadge n={badges[item.href]} className="absolute -top-2 -right-3" />
+                </span>
                 {item.label}
               </Link>
             </li>
@@ -135,7 +175,13 @@ function MoreTile({
   );
 }
 
-export function CommitteeShell({ children }: { children: React.ReactNode }) {
+export function CommitteeShell({
+  children,
+  badges = {},
+}: {
+  children: React.ReactNode;
+  badges?: NavBadges;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -144,7 +190,7 @@ export function CommitteeShell({ children }: { children: React.ReactNode }) {
       <aside className="sticky top-0 hidden h-dvh flex-col gap-6 border-r-2 bg-sidebar p-4 lg:flex">
         <Brand href="/committee" />
         <nav aria-label={lo.nav.committeeArea}>
-          <NavList pathname={pathname} />
+          <NavList pathname={pathname} badges={badges} />
         </nav>
         <div className="mt-auto">
           <ThemeToggle />
@@ -183,8 +229,11 @@ export function CommitteeShell({ children }: { children: React.ReactNode }) {
             <AppVersion className="text-center" />
           </SheetContent>
         </Sheet>
-        <main className="mx-auto max-w-6xl px-4 pt-4 pb-28 lg:px-8 lg:py-6">{children}</main>
-        <BottomNav pathname={pathname} onMore={() => setOpen(true)} />
+        <main className="mx-auto max-w-6xl px-4 pt-4 pb-44 lg:px-8 lg:pt-6 lg:pb-28">
+          {children}
+        </main>
+        <BottomNav pathname={pathname} badges={badges} onMore={() => setOpen(true)} />
+        <QuickExpenseButton />
       </div>
     </div>
   );

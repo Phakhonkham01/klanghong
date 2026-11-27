@@ -63,11 +63,20 @@ async function cleanup() {
     if (slips.length) await admin.storage.from("slips").remove(slips);
     await admin.from("payments").delete().eq("student_id", studentId);
   }
-  if (originalQr) await admin.from("settings").update({ qr_by_weeks: originalQr }).eq("id", 1);
+  // Restore only if it changed: every settings write adds an audit entry.
+  const { data: now } = await admin.from("settings").select("qr_by_weeks").eq("id", 1).single();
+  const same = (a: object, b: object) =>
+    JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+  if (originalQr && !same(originalQr, (now?.qr_by_weeks ?? {}) as object)) {
+    await admin.from("settings").update({ qr_by_weeks: originalQr }).eq("id", 1);
+  }
   const { data: s } = await admin.from("settings").select("qr_by_weeks").eq("id", 1).single();
   const kept = new Set(Object.values((s?.qr_by_weeks ?? {}) as Record<string, string>));
   const orphans = uploaded.filter((p) => !kept.has(p));
   if (orphans.length) await admin.storage.from("settings").remove(orphans);
+  // The test's own audit entries (QR edits, cash, cancels) would clutter "recent activity".
+  if (users.length) await admin.from("audit_log").delete().in("actor_id", users);
+  if (studentId) await admin.from("audit_log").delete().eq("meta->>student_id", studentId);
   for (const id of users) await admin.auth.admin.deleteUser(id);
 }
 
@@ -79,6 +88,11 @@ async function main() {
     process.exit(2);
   }
   originalQr = (s0.qr_by_weeks ?? {}) as Record<string, string>;
+  // Never touch a real QR: replacing a slot deletes its file. Stop if the test slot is in use.
+  if (originalQr["4"]) {
+    console.error("The 4-week QR slot is in use; this test would replace it. Not running.");
+    process.exit(2);
+  }
   const weekly = Number(s0.weekly_amount);
   const thisWeek = currentWeekStart();
   if (s0.start_date > thisWeek)
@@ -93,7 +107,15 @@ async function main() {
   await page("/committee/settings", committee);
   await page("/pay", student);
   const ids = findActionIds();
-  for (const n of ["saveWeekQrAction", "submitPaymentAction"]) {
+  await page(`/committee/members/${studentId}`, committee);
+  const more = findActionIds();
+  for (const [k, v] of more) ids.set(k, v);
+  for (const n of [
+    "saveWeekQrAction",
+    "submitPaymentAction",
+    "addCashPaymentAction",
+    "cancelCashPaymentAction",
+  ]) {
     if (!ids.has(n)) throw new Error(`missing action id ${n}`);
   }
 
@@ -185,6 +207,82 @@ async function main() {
       !(files ?? []).some((f) => qr4?.endsWith(f.name)),
     JSON.stringify(removed.result),
   );
+
+  // --- committee: cash for several weeks, in order, then cancel one ---
+  const after = openWeeks(s0.start_date, rows ?? []).map((o) => o.weekStart);
+  const cashSkip = await callAction(
+    ids,
+    "addCashPaymentAction",
+    committee,
+    [studentId, [after[1]], "skip"],
+    `/committee/members/${studentId}`,
+  );
+  check("cash that skips a week refused", cashSkip.result?.ok !== true);
+  const cash2 = await callAction(
+    ids,
+    "addCashPaymentAction",
+    committee,
+    [studentId, after.slice(0, 2), "e2e cash"],
+    `/committee/members/${studentId}`,
+  );
+  const { data: cashRows } = await admin
+    .from("payments")
+    .select("id, week_start, status, source")
+    .eq("student_id", studentId)
+    .eq("source", "cash")
+    .order("week_start");
+  check(
+    "committee records cash for 2 weeks at once",
+    cash2.result?.ok === true &&
+      cashRows?.length === 2 &&
+      cashRows.every((r) => r.status === "approved"),
+    JSON.stringify(cash2.result),
+  );
+  const byStudentCancel = await callAction(
+    ids,
+    "cancelCashPaymentAction",
+    student,
+    [cashRows?.[1]?.id],
+    "/dashboard",
+  );
+  check("student cannot cancel cash", byStudentCancel.result?.ok !== true);
+  const cancel = await callAction(
+    ids,
+    "cancelCashPaymentAction",
+    committee,
+    [cashRows?.[1]?.id],
+    `/committee/members/${studentId}`,
+  );
+  const { count: left } = await admin
+    .from("payments")
+    .select("id", { count: "exact", head: true })
+    .eq("student_id", studentId)
+    .eq("source", "cash");
+  const { data: logged } = await admin
+    .from("audit_log")
+    .select("action")
+    .eq("action", "cash_cancel")
+    .eq("entity_id", cashRows?.[1]?.id ?? "");
+  check(
+    "committee cancels one cash week (removed and logged)",
+    cancel.result?.ok === true && left === 1 && (logged ?? []).length === 1,
+    JSON.stringify(cancel.result),
+  );
+  const transferRow = await admin
+    .from("payments")
+    .select("id")
+    .eq("student_id", studentId)
+    .eq("source", "transfer")
+    .limit(1)
+    .single();
+  const notCash = await callAction(
+    ids,
+    "cancelCashPaymentAction",
+    committee,
+    [transferRow.data?.id],
+    `/committee/members/${studentId}`,
+  );
+  check("a transfer cannot be cancelled as cash", notCash.result?.ok === false);
 }
 
 try {

@@ -178,7 +178,7 @@ export function HistoryList({ payments }: { payments: PaymentView[] }) {
       </div>
 
       {/* Filter chips */}
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group">
+      <div className="-mx-4 no-scrollbar flex gap-2 overflow-x-auto px-4 pb-1" role="group">
         {FILTERS.map((f) => (
           <Button
             key={f}

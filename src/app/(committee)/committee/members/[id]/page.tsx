@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, CircleCheck, Coins, TriangleAlert } from "lucide-react";
-import { StatTile } from "@/components/committee/bits";
-import { CashPaymentButton } from "@/components/committee/cash-payment";
+import { CancelCashButton, CashPaymentButton } from "@/components/committee/cash-payment";
 import { nodeStyle, paymentStyle } from "@/components/student/status-style";
 import { requireSession } from "@/lib/auth";
 import { getPayments, getSettings, getStudent } from "@/lib/data/queries";
@@ -10,7 +9,7 @@ import { studentLabel } from "@/lib/data/types";
 import { lo } from "@/lib/i18n/lo";
 import { formatPhone } from "@/lib/phone";
 import { formatKip } from "@/lib/money";
-import { buildStudentWeeks, summarizeOutstanding } from "@/lib/status";
+import { buildStudentWeeks, openWeeks, summarizeOutstanding } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: lo.nav.members };
@@ -43,7 +42,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const paidTotal = payments
     .filter((p) => p.status === "approved")
     .reduce((s, p) => s + p.amount, 0);
-  const payable = entries.filter((e) => e.isPayable).map((e) => e.weekStart);
+  // Weeks the committee can take cash for, in pay order (owed first, then weeks ahead).
+  const open = openWeeks(settings.startDate, payments, now);
 
   return (
     <div className="space-y-5">
@@ -54,40 +54,100 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <ArrowLeft className="size-4" /> {t.backToList}
       </Link>
 
-      <div className="flex flex-wrap items-center gap-4">
-        <span className="grid size-16 press-3d place-items-center rounded-full bg-sky text-2xl font-black text-white [--press-shade:var(--sky-shade)]">
+      {/* Name and contact on one line; the cash button goes full width under it on phones. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
+        <span className="grid size-12 shrink-0 press-3d place-items-center rounded-full bg-sky text-xl font-black text-white [--press-depth:3px] [--press-shade:var(--sky-shade)]">
           {student.name.replace(/^ນາງ /, "").slice(0, 1)}
         </span>
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold">{student.name}</h1>
-          <p className="money text-sm text-muted-foreground">
+        <div className="min-w-0 flex-1 basis-40">
+          <h1 className="line-clamp-2 text-xl leading-snug font-bold">{student.name}</h1>
+          <p className="truncate money text-sm text-muted-foreground">
             {studentLabel(student)}
             {student.code && student.phone ? ` · ${formatPhone(student.phone)}` : ""}
           </p>
         </div>
-        <CashPaymentButton weeks={payable} studentId={student.id} studentName={student.name} />
+        <CashPaymentButton
+          weeks={open}
+          weeklyAmount={settings.weeklyAmount}
+          studentId={student.id}
+          studentName={student.name}
+          className="w-full sm:w-auto"
+        />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <StatTile
-          icon={Coins}
-          label={lo.stats.paidTotal}
-          value={formatKip(paidTotal)}
-          tone="text-status-paid"
-        />
-        <StatTile
-          icon={CircleCheck}
-          label={lo.profile.weeksPaid}
-          value={`${entries.filter((e) => e.status === "paid").length}/${entries.length}`}
-          tone="text-sky"
-        />
-        <StatTile
-          icon={TriangleAlert}
-          label={lo.stats.outstanding}
-          value={`${outstanding.count} · ${formatKip(outstanding.total)}`}
-          tone="text-status-rejected"
-        />
-      </div>
+      {/* One compact card: money paid, weeks paid (with a bar), weeks still owed. */}
+      {(() => {
+        const paidWeeks = entries.filter((e) => e.status === "paid").length;
+        const pct = entries.length ? Math.round((paidWeeks / entries.length) * 100) : 0;
+        const cols = [
+          {
+            icon: Coins,
+            tone: "text-status-paid",
+            label: t.statPaid,
+            value: formatKip(paidTotal),
+          },
+          {
+            icon: CircleCheck,
+            tone: "text-sky",
+            label: t.statWeeks,
+            value: `${paidWeeks}/${entries.length}`,
+          },
+          {
+            icon: TriangleAlert,
+            tone: outstanding.count ? "text-status-rejected" : "text-muted-foreground",
+            label: t.statOwed,
+            value: String(outstanding.count),
+            sub: outstanding.count ? formatKip(outstanding.total) : null,
+          },
+        ];
+        return (
+          <section className="rounded-2xl border-2 p-3">
+            <div className="grid grid-cols-3 divide-x-2">
+              {cols.map((c) => (
+                <div key={c.label} className="min-w-0 px-2 first:pl-1 last:pr-1">
+                  <p className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                    <c.icon
+                      className={cn("size-3.5 shrink-0", c.tone)}
+                      strokeWidth={2.6}
+                      aria-hidden
+                    />
+                    <span className="truncate">{c.label}</span>
+                  </p>
+                  <p
+                    className={cn(
+                      "mt-0.5 truncate money text-lg leading-tight font-black",
+                      c.label === lo.stats.outstanding &&
+                        outstanding.count &&
+                        "text-status-rejected",
+                    )}
+                  >
+                    {c.value}
+                    {c.sub ? (
+                      <span className="ml-1 text-xs font-bold text-status-rejected">{c.sub}</span>
+                    ) : null}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2.5 flex items-center gap-2">
+              <div
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={pct}
+                aria-label={lo.profile.weeksPaid}
+                className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-muted"
+              >
+                <span
+                  className="block h-full rounded-full bg-primary"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <span className="money text-xs font-bold text-primary">{pct}%</span>
+            </div>
+          </section>
+        );
+      })()}
 
       <section className="rounded-2xl border-2 p-4">
         <h2 className="mb-3 font-bold">{t.weeks}</h2>
@@ -143,9 +203,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                     </p>
                   ) : null}
                 </div>
-                <div className="text-right">
+                <div className="flex flex-col items-end">
                   <p className="money font-bold">{formatKip(p.amount)}</p>
-                  <p className={cn("text-xs font-bold", style.text)}>{lo.status[p.status]}</p>
+                  <p className={cn("text-xs font-bold", style.text)}>
+                    {p.source === "cash" ? lo.committee.members.cashLabel : lo.status[p.status]}
+                  </p>
+                  {p.source === "cash" ? (
+                    <CancelCashButton paymentId={p.id} label={formatWeekRange(p.week_start)} />
+                  ) : null}
                 </div>
               </li>
             );

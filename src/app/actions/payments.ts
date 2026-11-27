@@ -11,7 +11,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isInPayOrder, openWeeks, type PaymentStatus } from "@/lib/status";
 import { MAX_WEEKS_PER_SLIP, checkPayableWeek } from "@/lib/week";
 
-const MAX_WEEKS = 26;
 const STATUSES: PaymentStatus[] = ["pending", "approved", "rejected"];
 
 function mapDbError(message: string, code?: string): string {
@@ -178,7 +177,10 @@ export async function reviewPaymentAction(
   return { ok: true };
 }
 
-/** Committee records cash received for a student (approved immediately by the trigger). */
+/**
+ * Committee records cash received for a student (approved immediately by the trigger).
+ * Same rules as a transfer: up to 7 weeks, in order from the oldest open week (pay ahead allowed).
+ */
 export async function addCashPaymentAction(
   studentId: string,
   weeks: string[],
@@ -186,8 +188,21 @@ export async function addCashPaymentAction(
 ): Promise<ActionResult<number>> {
   await requireSession("committee");
   const supabase = await createSupabaseServerClient();
-  const unique = [...new Set(weeks)].slice(0, MAX_WEEKS);
+  const unique = [...new Set(weeks)].sort();
   if (!unique.length) return { ok: false, error: lo.errors.noWeeks };
+  if (unique.length > MAX_WEEKS_PER_SLIP) return { ok: false, error: lo.errors.weekNotPayable };
+
+  const [{ data: settings }, { data: theirs }] = await Promise.all([
+    supabase.from("settings").select("start_date").single(),
+    supabase
+      .from("payments")
+      .select("week_start, status, amount, created_at")
+      .eq("student_id", studentId),
+  ]);
+  if (!settings) return { ok: false, error: lo.errors.generic };
+  if (!isInPayOrder(unique, openWeeks(settings.start_date, theirs ?? []))) {
+    return { ok: false, error: lo.errors.payInOrder };
+  }
 
   const { error } = await supabase.from("payments").insert(
     unique.map((week_start) => ({
@@ -203,4 +218,34 @@ export async function addCashPaymentAction(
   revalidateAll();
   revalidatePath(`/committee/members/${studentId}`);
   return { ok: true, data: unique.length };
+}
+
+/**
+ * Undo a cash payment recorded by mistake. Cash rows are locked against updates, so the row is
+ * removed with the service role and the removal is written to the audit log.
+ */
+export async function cancelCashPaymentAction(paymentId: string): Promise<ActionResult> {
+  const { userId } = await requireSession("committee");
+  const admin = createSupabaseAdminClient();
+  const { data: p } = await admin
+    .from("payments")
+    .select("id, student_id, week_start, amount, source")
+    .eq("id", paymentId)
+    .maybeSingle();
+  if (!p || p.source !== "cash") return { ok: false, error: lo.errors.generic };
+
+  const { error } = await admin.from("payments").delete().eq("id", p.id).eq("source", "cash");
+  if (error) return { ok: false, error: lo.errors.generic };
+  await admin.from("audit_log").insert({
+    actor_id: userId,
+    action: "cash_cancel",
+    entity: "payment",
+    entity_id: p.id,
+    meta: { student_id: p.student_id, week_start: p.week_start, amount: p.amount },
+  });
+
+  revalidateAll();
+  revalidatePath(`/committee/members/${p.student_id}`);
+  revalidatePath("/committee/audit");
+  return { ok: true };
 }

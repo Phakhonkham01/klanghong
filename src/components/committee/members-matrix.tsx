@@ -15,8 +15,16 @@ import type { WeekStatus } from "@/lib/status";
 import type { IsoDate } from "@/lib/week";
 import { cn } from "@/lib/utils";
 
-type Filter = "all" | "overdue" | "unpaid";
+type Filter = "all" | "paid" | "transfer" | "cash" | "overdue" | "unpaid";
 const t = lo.committee.members;
+const filterLabel: Record<Filter, string> = {
+  all: t.all,
+  paid: t.paidThisWeek,
+  transfer: t.paidTransfer,
+  cash: t.paidCash,
+  overdue: t.overdue,
+  unpaid: t.unpaidThisWeek,
+};
 const PAGE = 8;
 const LEGEND: WeekStatus[] = ["paid", "pending", "rejected", "unpaid", "overdue"];
 
@@ -56,6 +64,9 @@ export function MembersMatrix({
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
       if (q && !r.name.toLowerCase().includes(q) && !r.code.toLowerCase().includes(q)) return false;
+      if (filter === "paid") return r.currentStatus === "paid";
+      if (filter === "transfer") return r.currentSource === "transfer";
+      if (filter === "cash") return r.currentSource === "cash";
       if (filter === "overdue") return r.overdueCount > 0;
       if (filter === "unpaid")
         return r.currentStatus === "unpaid" || r.currentStatus === "rejected";
@@ -65,6 +76,9 @@ export function MembersMatrix({
 
   const counts = {
     all: rows.length,
+    paid: rows.filter((r) => r.currentStatus === "paid").length,
+    transfer: rows.filter((r) => r.currentSource === "transfer").length,
+    cash: rows.filter((r) => r.currentSource === "cash").length,
     overdue: rows.filter((r) => r.overdueCount > 0).length,
     unpaid: rows.filter((r) => r.currentStatus === "unpaid" || r.currentStatus === "rejected")
       .length,
@@ -109,8 +123,8 @@ export function MembersMatrix({
             className="h-11 rounded-2xl border-2 pl-10 text-base md:text-sm"
           />
         </div>
-        <div className="flex gap-2 overflow-x-auto" role="group">
-          {(["all", "overdue", "unpaid"] as const).map((f) => (
+        <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1" role="group">
+          {(["all", "paid", "transfer", "cash", "overdue", "unpaid"] as const).map((f) => (
             <Button
               key={f}
               variant="tile"
@@ -118,7 +132,7 @@ export function MembersMatrix({
               aria-pressed={filter === f}
               onClick={() => setFilter(f)}
             >
-              {f === "all" ? t.all : f === "overdue" ? t.overdue : t.unpaidThisWeek}
+              {filterLabel[f]}
               <span className="money text-xs opacity-70">{counts[f]}</span>
             </Button>
           ))}

@@ -144,7 +144,7 @@ export function StudentsManager({ initial }: { initial: StudentView[] }) {
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1" role="group">
+      <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1" role="group">
         {(["pending", "members", "inactive"] as const).map((k) => (
           <Button
             key={k}

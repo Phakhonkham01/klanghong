@@ -26,6 +26,9 @@ export default async function Page({
     settings.weeklyAmount,
     now,
   );
-  const initialFilter = filter === "overdue" || filter === "unpaid" ? filter : "all";
+  const FILTERS = ["paid", "transfer", "cash", "overdue", "unpaid"] as const;
+  const initialFilter = (FILTERS as readonly string[]).includes(filter ?? "")
+    ? (filter as (typeof FILTERS)[number])
+    : "all";
   return <MembersMatrix weeks={weeks} rows={rows} initialFilter={initialFilter} />;
 }

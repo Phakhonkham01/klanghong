@@ -290,7 +290,7 @@ export function ReviewQueue({
         </p>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1" role="group">
+      <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1" role="group">
         {TABS.map((s) => (
           <Button
             key={s}

@@ -11,6 +11,8 @@ export interface MemberRow {
   totalPaid: number;
   overdueCount: number;
   currentStatus: WeekStatus | null;
+  /** How this week was paid, when it is paid. */
+  currentSource: "transfer" | "cash" | null;
 }
 
 /** Build the committee payment matrix: one row per active student, one column per week. */
@@ -37,6 +39,8 @@ export function buildMemberRows(
       totalPaid: own.filter((p) => p.status === "approved").reduce((sum, p) => sum + p.amount, 0),
       overdueCount: summarizeOutstanding(entries, weeklyAmount).count,
       currentStatus: entries.at(-1)?.status ?? null,
+      currentSource:
+        entries.at(-1)?.status === "paid" ? (entries.at(-1)?.payment?.source ?? null) : null,
     };
   });
   return { weeks, rows };

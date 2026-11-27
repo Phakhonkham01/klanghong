@@ -7,6 +7,7 @@ import {
   RotateCcw,
   Settings,
   Trash2,
+  Undo2,
   type LucideIcon,
 } from "lucide-react";
 import type { AuditAction } from "@/lib/data/types";
@@ -20,4 +21,5 @@ export const auditIcon: Record<AuditAction, { icon: LucideIcon; tone: string }> 
   expense_delete: { icon: Trash2, tone: "bg-muted-foreground text-white" },
   settings_update: { icon: Settings, tone: "bg-muted-foreground text-white" },
   cash_payment: { icon: Coins, tone: "bg-status-paid text-white" },
+  cash_cancel: { icon: Undo2, tone: "bg-status-rejected text-white" },
 };

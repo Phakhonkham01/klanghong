@@ -230,7 +230,7 @@ export function PayFlow({
   const beyondLimit = (week: IsoDate) =>
     options.findIndex((o) => o.weekStart === week) >= MAX_WEEKS_PER_SLIP;
   // The QR made for exactly this amount, else the general one.
-  const amountQr = bank.qrByWeeks[selected.length] ?? null;
+  const amountQr = bank.qrByWeeks?.[selected.length] ?? null;
 
   const canContinue = step === 0 ? selected.length > 0 : step === 1 ? true : file !== null;
 

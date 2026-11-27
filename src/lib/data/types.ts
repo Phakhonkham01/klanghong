@@ -61,7 +61,8 @@ export type AuditAction =
   | "expense_update"
   | "expense_delete"
   | "settings_update"
-  | "cash_payment";
+  | "cash_payment"
+  | "cash_cancel";
 
 export interface AuditView {
   id: number;
