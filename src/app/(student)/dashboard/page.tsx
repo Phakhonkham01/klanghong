@@ -7,7 +7,13 @@ import { WeekHero } from "@/components/student/week-hero";
 import { WeekPath } from "@/components/student/week-path";
 import { buttonVariants } from "@/components/ui/button";
 import { requireSession } from "@/lib/auth";
-import { getClassWeekStats, getFundSummary, getPayments, getSettings } from "@/lib/data/queries";
+import {
+  getClassWeekStats,
+  getFundSummary,
+  getPayments,
+  getSettings,
+  getActiveTheme,
+} from "@/lib/data/queries";
 import { formatDateLo } from "@/lib/format";
 import { lo } from "@/lib/i18n/lo";
 import { formatKip } from "@/lib/money";
@@ -18,11 +24,12 @@ import { currentWeekStart, daysUntilDeadline, todayInTz } from "@/lib/week";
 export default async function Page() {
   const { userId } = await requireSession();
   const now = new Date();
-  const [settings, payments, fund, classStats] = await Promise.all([
+  const [settings, payments, fund, classStats, theme] = await Promise.all([
     getSettings(),
     getPayments({ studentId: userId }),
     getFundSummary(),
     getClassWeekStats(currentWeekStart(now)),
+    getActiveTheme(),
   ]);
   const entries = buildStudentWeeks(settings.startDate, payments, now);
   // Upcoming weeks paid in advance: approved wins over waiting for review.
@@ -55,6 +62,7 @@ export default async function Page() {
             amount={settings.weeklyAmount}
             daysLeft={daysUntilDeadline(now)}
             classStats={classStats}
+            festival={theme ? { greeting: theme.greeting, kind: theme.decorations.kind } : null}
           />
         ) : null}
       </HideOnScroll>

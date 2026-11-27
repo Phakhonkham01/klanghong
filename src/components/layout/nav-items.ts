@@ -4,6 +4,7 @@ import {
   History,
   House,
   LayoutDashboard,
+  Palette,
   ScrollText,
   Settings,
   Table2,
@@ -31,6 +32,7 @@ export const committeeNav: NavItem[] = [
   { href: "/committee/expenses", label: lo.nav.expenses, icon: Receipt },
   { href: "/committee/reports", label: lo.nav.reports, icon: BarChart3 },
   { href: "/committee/settings", label: lo.nav.settings, icon: Settings },
+  { href: "/committee/theme", label: lo.nav.theme, icon: Palette },
   { href: "/committee/audit", label: lo.nav.audit, icon: ScrollText },
 ];
 

@@ -67,6 +67,8 @@ export type SettingsRow = {
   qr_path: string | null;
   /** Fixed-amount bank QR paths keyed by the number of weeks ("1" … "7"). */
   qr_by_weeks: Record<string, string>;
+  /** Festival theme key (src/lib/themes.ts), or null for the default look (0010). */
+  active_theme: string | null;
   note: string | null;
   updated_at: string;
   updated_by: string | null;

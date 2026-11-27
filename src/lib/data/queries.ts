@@ -1,4 +1,6 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
+import { themeByKey, type FestivalTheme } from "@/lib/themes";
 import { formatWeekRange } from "@/lib/format";
 import { quotaWindowStart, vientianeMonthStart } from "@/lib/otp";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -287,4 +289,27 @@ export async function getCommitteeBadges(): Promise<Record<string, number>> {
     "/committee/review": slips.count ?? 0,
     "/committee/students": signups.count ?? 0,
   };
+}
+
+/** Cache tag for the active festival theme; the save action revalidates it. */
+export const THEME_TAG = "active-theme";
+
+const readActiveTheme = unstable_cache(
+  async (): Promise<string | null> => {
+    const { data, error } = await createSupabaseAdminClient()
+      .from("settings")
+      .select("active_theme")
+      .eq("id", 1)
+      .single();
+    // Before migration 0010 the column is missing: behave as "default theme".
+    if (error) return null;
+    return data?.active_theme ?? null;
+  },
+  ["active-theme"],
+  { tags: [THEME_TAG], revalidate: 300 },
+);
+
+/** The festival theme everyone sees right now, or null for the default look. */
+export async function getActiveTheme(): Promise<FestivalTheme | null> {
+  return themeByKey(await readActiveTheme().catch(() => null));
 }

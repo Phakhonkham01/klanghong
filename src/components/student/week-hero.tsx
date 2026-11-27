@@ -5,6 +5,8 @@ import { formatKip } from "@/lib/money";
 import type { ClassWeekStats } from "@/lib/data/types";
 import type { WeekEntry } from "@/lib/status";
 import { cn } from "@/lib/utils";
+import { FestivalArt } from "@/components/theme/festival-art";
+import type { DecorationKind } from "@/lib/themes";
 import { pathNodeStyle } from "./status-style";
 
 function countdown(daysLeft: number): string {
@@ -84,11 +86,14 @@ export function WeekHero({
   amount,
   daysLeft,
   classStats,
+  festival,
 }: {
   entry: WeekEntry;
   amount: number;
   daysLeft: number;
   classStats?: ClassWeekStats;
+  /** Active festival theme: a greeting line and its art in the banner corner. */
+  festival?: { greeting: string; kind: DecorationKind } | null;
 }) {
   // Paid weeks need no extra line; the others say what to do or why.
   const sub =
@@ -103,11 +108,20 @@ export function WeekHero({
 
   return (
     <section className="relative press-3d overflow-hidden rounded-2xl bg-linear-to-br from-sky via-sky to-sky-shade text-white [--press-shade:var(--sky-shade)] active:transform-none">
-      {/* soft decorative bubbles */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute -top-8 -right-6 size-24 rounded-full bg-white/10"
-      />
+      {/* soft decorative bubbles, or the festival's art */}
+      {festival ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -top-2 right-12 size-16 opacity-90"
+        >
+          <FestivalArt kind={festival.kind} className="size-full" />
+        </span>
+      ) : (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -top-8 -right-6 size-24 rounded-full bg-white/10"
+        />
+      )}
       <span
         aria-hidden
         className="pointer-events-none absolute top-6 right-16 size-8 rounded-full bg-white/10"
@@ -130,6 +144,9 @@ export function WeekHero({
             {lo.status[entry.status]} · <span className="money">{formatKip(amount)}</span>
           </p>
           {sub ? <p className="truncate text-xs text-white/90">{sub}</p> : null}
+          {festival ? (
+            <p className="truncate text-xs font-bold text-white">{festival.greeting}</p>
+          ) : null}
         </div>
         <Link
           href="/history"

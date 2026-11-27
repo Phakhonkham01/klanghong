@@ -1,11 +1,13 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { requireSession } from "@/lib/auth";
 import type { ActionResult } from "@/lib/data/types";
 import { readImageUpload } from "@/lib/files";
+import { THEME_TAG } from "@/lib/data/queries";
 import { lo } from "@/lib/i18n/lo";
+import { isThemeKey } from "@/lib/themes";
 import { parseKip } from "@/lib/money";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { MAX_WEEKS_PER_SLIP, isIsoDate, todayInTz } from "@/lib/week";
@@ -176,5 +178,24 @@ export async function saveWeekQrAction(form: FormData): Promise<ActionResult> {
   if (old && old !== map[String(weeks)]) await supabase.storage.from("settings").remove([old]);
 
   for (const p of ["/committee/settings", "/pay"]) revalidatePath(p);
+  return { ok: true };
+}
+
+/** Committee picks the festival theme for every student, or `null` for the default look. */
+export async function setThemeAction(key: string | null): Promise<ActionResult> {
+  await requireSession("committee");
+  if (key !== null && !isThemeKey(key)) return { ok: false, error: lo.errors.generic };
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from("settings").update({ active_theme: key }).eq("id", 1);
+  if (error) {
+    return {
+      ok: false,
+      error: /active_theme/.test(error.message)
+        ? lo.committee.theme.needsMigration
+        : lo.errors.generic,
+    };
+  }
+  revalidateTag(THEME_TAG);
+  revalidatePath("/", "layout");
   return { ok: true };
 }
