@@ -17,7 +17,8 @@ export default async function Page({
   return (
     <div className="flex min-h-dvh flex-col bg-primary">
       {/* Splash-style brand area */}
-      <section className="flex flex-1 flex-col items-center justify-center gap-4 px-6 pt-14 pb-16 text-primary-foreground">
+      {/* Compact (not flex-1) so the form sheet sits higher on the screen. */}
+      <section className="flex flex-col items-center justify-center gap-4 px-6 pt-14 pb-[4.75rem] text-primary-foreground">
         <SecretLogo />
         <h1 className="text-5xl leading-tight font-black">{lo.app.name}</h1>
         <p className="max-w-xs text-center text-base font-semibold text-primary-foreground/90">
@@ -26,7 +27,7 @@ export default async function Page({
       </section>
 
       {/* Form sheet */}
-      <section className="-mt-6 rounded-t-[2rem] bg-background px-6 pt-8 pb-[max(2rem,env(safe-area-inset-bottom))]">
+      <section className="-mt-6 flex-1 rounded-t-[2rem] bg-background px-6 pt-8 pb-[max(2rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto w-full max-w-sm">
           <h2 className="text-2xl font-bold">{lo.login.welcome}</h2>
           <p className="mb-6 text-sm text-muted-foreground">{lo.login.subtitle}</p>
