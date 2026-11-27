@@ -118,6 +118,8 @@ export const lo = {
     accountName: "ຊື່ບັນຊີ",
     accountNo: "ເລກບັນຊີ",
     qrHint: "ສະແກນ QR ເພື່ອໂອນ",
+    tipTitle: "ໂອນແລ້ວ ຢ່າລືມເດີ!",
+    tipText: 'ກົດ "ຕໍ່ໄປ" ແລ້ວອັບໂຫຼດໃບບິນ (ສະລິບ) ໃຫ້ຄະນະຫ້ອງກວດ',
     uploadTitle: "ອັບໂຫຼດສະລິບການໂອນ",
     uploadCta: "ແຕະເພື່ອຖ່າຍຮູບ ຫຼື ເລືອກຮູບ",
     uploadTypes: "JPG, PNG ຫຼື WEBP",

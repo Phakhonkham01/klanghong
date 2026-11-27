@@ -13,7 +13,7 @@ import type { WeekEntry } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 /** sign: holds a sign on a stick · point: points at the week button · thumbs: thumbs up. */
-type Pose = "sign" | "point" | "thumbs";
+export type Pose = "sign" | "point" | "thumbs";
 type Mood = {
   text: readonly [string, string];
   icon: LucideIcon;
@@ -66,7 +66,7 @@ const INK = "#1f2937";
  * Original green piggy-bank character (drawn here, no external art). Faces right, towards the
  * week button. Poses: holding a sign stick, pointing a hoof at the button, or a thumbs up.
  */
-function Piggy({ pose, happy }: { pose: Pose; happy: boolean }) {
+export function Piggy({ pose, happy = false }: { pose: Pose; happy?: boolean }) {
   return (
     <svg viewBox="0 -8 86 68" className="h-[64px] w-[82px]" aria-hidden>
       {/* legs */}
@@ -251,5 +251,37 @@ export function PiggyMascot({ entry, side }: { entry: WeekEntry; side: "left" | 
         <span role="status">{body}</span>
       )}
     </span>
+  );
+}
+
+/** The piggy with a speech bubble beside it: a friendly reminder on a page. */
+export function PiggyTip({
+  title,
+  text,
+  pose = "point",
+}: {
+  title: string;
+  text: string;
+  pose?: Pose;
+}) {
+  return (
+    <div className="flex items-end gap-1" role="note">
+      <span className="block shrink-0 animate-hop">
+        <Piggy pose={pose} />
+      </span>
+      <div className="relative mb-6 min-w-0 rounded-2xl border-2 border-sky bg-background px-3 py-2 shadow-sm">
+        {/* tail towards the piggy */}
+        <svg
+          aria-hidden
+          viewBox="0 0 8 14"
+          className="absolute top-1/2 -left-2 h-3.5 w-2 -translate-y-1/2 text-sky"
+          fill="currentColor"
+        >
+          <path d="M8 0 V14 L0 7 Z" />
+        </svg>
+        <p className="text-sm font-bold text-sky">{title}</p>
+        <p className="text-xs font-semibold text-muted-foreground">{text}</p>
+      </div>
+    </div>
   );
 }

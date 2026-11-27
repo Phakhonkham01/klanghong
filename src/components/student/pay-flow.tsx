@@ -24,6 +24,7 @@ import { formatKip } from "@/lib/money";
 import type { WeekStatus } from "@/lib/status";
 import type { IsoDate } from "@/lib/week";
 import { cn } from "@/lib/utils";
+import { PiggyTip } from "./piggy-mascot";
 import { dotClass } from "./status-style";
 
 export type PayWeekOption = { weekStart: IsoDate; status: WeekStatus; isCurrent: boolean };
@@ -289,6 +290,9 @@ export function PayFlow({
                   <QrCode className="size-24" strokeWidth={1.4} aria-hidden />
                 )}
                 <p className="mt-2 text-sm font-semibold">{lo.pay.qrHint}</p>
+              </div>
+              <div className="mt-4">
+                <PiggyTip title={lo.pay.tipTitle} text={lo.pay.tipText} />
               </div>
             </section>
           ) : null}
